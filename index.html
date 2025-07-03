@@ -2131,7 +2131,6 @@
         const audioContext = new (window.AudioContext ||
           window.webkitAudioContext)();
         let audioBuffer = null;
-        let isPlaying = false;
         let playheadReqId = null;
         let zoomLevel = 1;
         let panOffset = 0;
@@ -2269,7 +2268,6 @@
 
         function resetDragState() {
           if (dragSourceBtn) dragSourceBtn.style.opacity = "";
-          setDropHighlight(null);
           draggingLang = null;
           dragSourceBtn = null;
         }
@@ -3664,9 +3662,6 @@ ${styleLines}
             );
         }
 
-        function closestLangBtn(el) {
-          return el ? el.closest(".lang-btn") : null;
-        }
 
         langButtons.forEach((btn) => {
           btn.addEventListener(
@@ -3751,10 +3746,10 @@ ${styleLines}
             e.dataTransfer.setData("text/plain", draggingLang);
           });
           btn.addEventListener("dragend", resetDragState);
-          btn.addEventListener("dragenter", (e) =>
-            setDropHighlight(e.currentTarget)
-          );
-          btn.addEventListener("dragleave", () => setDropHighlight(null));
+          btn.addEventListener("dragenter", () => {
+            btn.classList.add("drop-target");
+          });
+          btn.addEventListener("dragleave", () => btn.classList.remove("drop-target"));
           btn.addEventListener("dragover", (e) => e.preventDefault());
           btn.addEventListener("drop", (e) => {
             e.preventDefault();
@@ -4158,7 +4153,6 @@ ${styleLines}
 
         let draggingLang = null;
         let dragSourceBtn = null;
-        let currentTarget = null;
 
         document.addEventListener(
           "pointerdown",

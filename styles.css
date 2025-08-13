@@ -593,9 +593,7 @@ button:disabled:hover {
 }
 
 #player-container:-webkit-full-screen .controls,
-#player-container:-webkit-full-screen #timeline,
-#player-container:fullscreen .controls,
-#player-container:fullscreen #timeline {
+#player-container:fullscreen .controls {
   opacity: 0;
   transition: opacity 0.3s ease;
   position: absolute;
@@ -629,17 +627,13 @@ button:disabled:hover {
   display: none !important;
 }
 
-#player-container:-webkit-fullscreen.show-controls #timeline,
-#player-container:fullscreen.show-controls #timeline,
 #player-container:-webkit-fullscreen.show-controls .controls,
 #player-container:fullscreen.show-controls .controls {
   opacity: 1;
 }
 
 #player-container:fullscreen .controls,
-#player-container:fullscreen #timeline,
-#player-container:-webkit-full-screen .controls,
-#player-container:-webkit-full-screen #timeline {
+#player-container:-webkit-full-screen .controls {
   opacity: 0;
   pointer-events: none;
   transition: opacity 1s ease;
@@ -654,9 +648,7 @@ button:disabled:hover {
 }
 
 #player-container:fullscreen.show-controls .controls,
-#player-container:fullscreen.show-controls #timeline,
-#player-container:-webkit-full-screen.show-controls .controls,
-#player-container:-webkit-full-screen.show-controls #timeline {
+#player-container:-webkit-full-screen.show-controls .controls {
   opacity: 1;
   pointer-events: auto;
   position: absolute;
@@ -667,11 +659,6 @@ button:disabled:hover {
   padding: 0;
   z-index: 1000;
   height: 6px;
-}
-
-#player-container:-webkit-full-screen #timeline::-webkit-slider-thumb,
-#player-container:fullscreen #timeline::-webkit-slider-thumb {
-  visibility: visible !important;
 }
 
 #player-container:fullscreen .volume-control,
@@ -705,41 +692,17 @@ button:disabled:hover {
   pointer-events: none;
 }
 
-.video-panel #timeline {
+.video-panel #timelineCanvas {
   position: absolute;
-
   left: 0;
+  top: 0;
   width: 100%;
   height: 28px;
   margin: 0;
   padding: 0;
-
   box-sizing: border-box;
-  -webkit-appearance: none;
-  appearance: none;
-  background: transparent;
   cursor: pointer;
-
-  border: none !important;
-  border-radius: 0 !important;
-  outline: none !important;
   z-index: 3;
-}
-
-.video-panel #timeline::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 4px;
-  height: 28px;
-  background: red;
-  border: none;
-  border-radius: 0 !important;
-  position: relative;
-  z-index: 3;
-}
-
-.video-panel #timeline:focus {
-  outline: none;
 }
 
 .video-panel .controls {

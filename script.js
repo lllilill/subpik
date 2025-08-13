@@ -2223,7 +2223,7 @@ ${styleLines}
         relX = (currentSample - panOffset) / segmentLength;
       }
 
-      let cssX = relX * visW - phW / 2;
+      let cssX = relX * (visW - phW);
 
       cssX = Math.max(0, Math.min(visW - phW, cssX));
       playheadDiv.style.left = cssX + "px";
@@ -2693,11 +2693,11 @@ ${styleLines}
 
     const timelineW = timelineContainer.getBoundingClientRect().width;
     const internalW = waveformCanvas.width;
-    const scaleFactor = timelineW / internalW;
-
-    let cssX = xPos * scaleFactor;
 
     const phW = playheadDiv.offsetWidth;
+    const scaleFactor = (timelineW - phW) / internalW;
+
+    let cssX = xPos * scaleFactor;
 
     cssX = Math.max(0, Math.min(timelineW - phW, cssX));
     playheadDiv.style.left = cssX + "px";
@@ -2813,7 +2813,7 @@ ${styleLines}
     const visW = timelineContainer.clientWidth;
     const relX = (targetSample - panOffset) / segmentLength;
 
-    let cssX = relX * visW - phW / 2;
+    let cssX = relX * (visW - phW);
 
     cssX = Math.max(0, Math.min(visW - phW, cssX));
     playheadDiv.style.left = cssX + "px";

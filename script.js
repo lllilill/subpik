@@ -2248,7 +2248,14 @@ ${styleLines}
       } else {
         relX = (currentSample - panOffset) / segmentLength;
       }
-      positionPlayheads(relX);
+
+
+      let cssX = relX * (visW - phW);
+
+      cssX = Math.max(0, Math.min(visW - phW, cssX));
+      playheadDiv.style.left = cssX + "px";
+      waveformPlayheadDiv.style.left = cssX + "px";
+
 
     }
   });
@@ -2715,8 +2722,17 @@ ${styleLines}
     }
 
     const internalW = waveformCanvas.width;
-    const relX = internalW ? xPos / internalW : 0;
-    positionPlayheads(relX);
+
+
+    const phW = playheadDiv.offsetWidth;
+    const scaleFactor = (timelineW - phW) / internalW;
+
+    let cssX = xPos * scaleFactor;
+
+    cssX = Math.max(0, Math.min(timelineW - phW, cssX));
+    playheadDiv.style.left = cssX + "px";
+    waveformPlayheadDiv.style.left = cssX + "px";
+
 
 
     playheadReqId = requestAnimationFrame(updatePlayhead);
@@ -2827,7 +2843,13 @@ ${styleLines}
     updateZoomHighlight();
 
     const relX = (targetSample - panOffset) / segmentLength;
-    positionPlayheads(relX);
+
+    let cssX = relX * (visW - phW);
+
+    cssX = Math.max(0, Math.min(visW - phW, cssX));
+    playheadDiv.style.left = cssX + "px";
+    waveformPlayheadDiv.style.left = cssX + "px";
+
 
 
     const newTime = (targetSample / totalSamples) * video.duration;

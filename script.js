@@ -1093,9 +1093,7 @@ document.addEventListener("DOMContentLoaded", () => {
     timelineCtx.clearRect(0, 0, width, height);
     if (!timelineEnabled || isNaN(video.duration) || video.duration === 0)
       return;
-    const x = (video.currentTime / video.duration) * width;
-    timelineCtx.fillStyle = "red";
-    timelineCtx.fillRect(x - 2, 0, 4, height);
+    // The red playhead is now rendered via the CSS #playhead element.
   }
 
   window.addEventListener("resize", resizeWaveformCanvas);

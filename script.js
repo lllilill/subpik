@@ -2693,6 +2693,7 @@ ${styleLines}
 
     const timelineW = timelineContainer.getBoundingClientRect().width;
     const internalW = waveformCanvas.width;
+
     const phW = playheadDiv.offsetWidth;
     const scaleFactor = (timelineW - phW) / internalW;
 

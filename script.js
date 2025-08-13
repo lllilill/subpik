@@ -2209,7 +2209,7 @@ ${styleLines}
       updateZoomHighlight();
 
       const phW = playheadDiv.offsetWidth;
-      const visW = waveformContainer.clientWidth;
+      const visW = timelineContainer.clientWidth;
 
       let relX;
       if (segmentLength >= totalSamples) {
@@ -2223,7 +2223,7 @@ ${styleLines}
         relX = (currentSample - panOffset) / segmentLength;
       }
 
-      let cssX = relX * visW - phW / 2;
+      let cssX = relX * (visW - phW);
 
       cssX = Math.max(0, Math.min(visW - phW, cssX));
       playheadDiv.style.left = cssX + "px";
@@ -2691,19 +2691,14 @@ ${styleLines}
       }
     }
 
-    const visibleWidth = waveformCanvas.getBoundingClientRect().width;
-    const playheadWidth = playheadDiv.clientWidth;
-
-    const rect = waveformCanvas.getBoundingClientRect();
-    const visibleW = rect.width;
+    const timelineW = timelineContainer.getBoundingClientRect().width;
     const internalW = waveformCanvas.width;
-    const scaleFactor = visibleW / internalW;
-
-    const cssX = xPos * scaleFactor;
-
     const phW = playheadDiv.offsetWidth;
+    const scaleFactor = (timelineW - phW) / internalW;
 
-    cssX = Math.max(0, Math.min(visibleW - phW, cssX));
+    let cssX = xPos * scaleFactor;
+
+    cssX = Math.max(0, Math.min(timelineW - phW, cssX));
     playheadDiv.style.left = cssX + "px";
 
     playheadReqId = requestAnimationFrame(updatePlayhead);
@@ -2814,10 +2809,10 @@ ${styleLines}
     updateZoomHighlight();
 
     const phW = playheadDiv.offsetWidth;
-    const visW = waveformContainer.clientWidth;
+    const visW = timelineContainer.clientWidth;
     const relX = (targetSample - panOffset) / segmentLength;
 
-    let cssX = relX * visW - phW / 2;
+    let cssX = relX * (visW - phW);
 
     cssX = Math.max(0, Math.min(visW - phW, cssX));
     playheadDiv.style.left = cssX + "px";
@@ -2833,7 +2828,7 @@ ${styleLines}
     e.preventDefault();
 
     const totalSamples = audioBuffer.length;
-    const width = waveformCanvas.width;
+    const width = timelineContainer.clientWidth;
 
     const playheadStyleLeft = parseFloat(playheadDiv.style.left) || 0;
     const headRatio = playheadStyleLeft / width;

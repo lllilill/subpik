@@ -219,7 +219,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const waveformCanvas = document.getElementById("waveformCanvas");
   const canvasCtx = waveformCanvas.getContext("2d");
   const playheadDiv = document.getElementById("playhead");
-  const waveformPlayheadDiv = document.getElementById("waveformPlayhead");
+
 
   function formatTime(t) {
     const totalMs = Math.floor(t * 1000);
@@ -800,9 +800,7 @@ document.addEventListener("DOMContentLoaded", () => {
       "loadedmetadata",
       () => {
         playheadDiv.style.display = "block";
-        waveformPlayheadDiv.style.display = "block";
-        playheadDiv.style.left = "0px";
-        waveformPlayheadDiv.style.left = "0px";
+
         if (audioBuffer) {
           drawWaveform();
         }
@@ -851,7 +849,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (video.readyState >= 1) {
           waveformContainer.style.visibility = "visible";
           playheadDiv.style.visibility = "visible";
-          waveformPlayheadDiv.style.visibility = "visible";
+
 
           drawWaveform();
 
@@ -1032,7 +1030,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       waveformContainer.style.visibility = "hidden";
       playheadDiv.style.display = "none";
-      waveformPlayheadDiv.style.display = "none";
+
     }
   });
 
@@ -2232,7 +2230,7 @@ ${styleLines}
 
       cssX = Math.max(0, Math.min(visW - phW, cssX));
       playheadDiv.style.left = cssX + "px";
-      waveformPlayheadDiv.style.left = cssX + "px";
+
     }
   });
 
@@ -2707,7 +2705,7 @@ ${styleLines}
 
     cssX = Math.max(0, Math.min(timelineW - phW, cssX));
     playheadDiv.style.left = cssX + "px";
-    waveformPlayheadDiv.style.left = cssX + "px";
+
 
     playheadReqId = requestAnimationFrame(updatePlayhead);
   }
@@ -2824,7 +2822,7 @@ ${styleLines}
 
     cssX = Math.max(0, Math.min(visW - phW, cssX));
     playheadDiv.style.left = cssX + "px";
-    waveformPlayheadDiv.style.left = cssX + "px";
+
 
     const newTime = (targetSample / totalSamples) * video.duration;
     video.currentTime = newTime;

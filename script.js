@@ -219,6 +219,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const waveformCanvas = document.getElementById("waveformCanvas");
   const canvasCtx = waveformCanvas.getContext("2d");
   const playheadDiv = document.getElementById("playhead");
+  const waveformPlayheadDiv = document.getElementById("waveformPlayhead");
 
 
   function formatTime(t) {
@@ -604,6 +605,28 @@ document.addEventListener("DOMContentLoaded", () => {
   const timelineCtx = timelineCanvas.getContext("2d");
   let timelineEnabled = false;
 
+  function positionPlayheads(relX) {
+    const phW = playheadDiv.offsetWidth;
+    const visW = timelineContainer.clientWidth;
+
+    let wfX = relX * (visW - phW);
+    wfX = Math.max(0, Math.min(visW - phW, wfX));
+    waveformPlayheadDiv.style.left = wfX + "px";
+
+    const highlight = document.getElementById("zoomHighlight");
+    const timelineRect = timelineContainer.getBoundingClientRect();
+    const highlightRect = highlight.getBoundingClientRect();
+    const highlightLeft = highlightRect.left - timelineRect.left;
+    const highlightWidth = highlightRect.width;
+
+    let tlX = highlightLeft + relX * (highlightWidth - phW);
+    tlX = Math.max(
+      highlightLeft,
+      Math.min(highlightLeft + highlightWidth - phW, tlX)
+    );
+    playheadDiv.style.left = tlX + "px";
+  }
+
   document.addEventListener("keydown", (e) => {
     if (e.code === "Enter") {
       e.preventDefault();
@@ -800,6 +823,7 @@ document.addEventListener("DOMContentLoaded", () => {
       "loadedmetadata",
       () => {
         playheadDiv.style.display = "block";
+        waveformPlayheadDiv.style.display = "block";
 
         if (audioBuffer) {
           drawWaveform();
@@ -849,6 +873,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (video.readyState >= 1) {
           waveformContainer.style.visibility = "visible";
           playheadDiv.style.visibility = "visible";
+          waveformPlayheadDiv.style.visibility = "visible";
 
 
           drawWaveform();
@@ -1030,6 +1055,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       waveformContainer.style.visibility = "hidden";
       playheadDiv.style.display = "none";
+      waveformPlayheadDiv.style.display = "none";
 
     }
   });
@@ -2211,9 +2237,6 @@ ${styleLines}
       drawWaveform();
       updateZoomHighlight();
 
-      const phW = playheadDiv.offsetWidth;
-      const visW = timelineContainer.clientWidth;
-
       let relX;
       if (segmentLength >= totalSamples) {
         relX = currentSample / totalSamples;
@@ -2225,11 +2248,7 @@ ${styleLines}
       } else {
         relX = (currentSample - panOffset) / segmentLength;
       }
-
-      let cssX = relX * (visW - phW);
-
-      cssX = Math.max(0, Math.min(visW - phW, cssX));
-      playheadDiv.style.left = cssX + "px";
+      positionPlayheads(relX);
 
     }
   });
@@ -2695,16 +2714,9 @@ ${styleLines}
       }
     }
 
-    const timelineW = timelineContainer.getBoundingClientRect().width;
     const internalW = waveformCanvas.width;
-
-    const phW = playheadDiv.offsetWidth;
-    const scaleFactor = (timelineW - phW) / internalW;
-
-    let cssX = xPos * scaleFactor;
-
-    cssX = Math.max(0, Math.min(timelineW - phW, cssX));
-    playheadDiv.style.left = cssX + "px";
+    const relX = internalW ? xPos / internalW : 0;
+    positionPlayheads(relX);
 
 
     playheadReqId = requestAnimationFrame(updatePlayhead);
@@ -2814,14 +2826,8 @@ ${styleLines}
     drawWaveform();
     updateZoomHighlight();
 
-    const phW = playheadDiv.offsetWidth;
-    const visW = timelineContainer.clientWidth;
     const relX = (targetSample - panOffset) / segmentLength;
-
-    let cssX = relX * (visW - phW);
-
-    cssX = Math.max(0, Math.min(visW - phW, cssX));
-    playheadDiv.style.left = cssX + "px";
+    positionPlayheads(relX);
 
 
     const newTime = (targetSample / totalSamples) * video.duration;

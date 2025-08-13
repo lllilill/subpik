@@ -203,6 +203,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const audioContext = new (window.AudioContext ||
     window.webkitAudioContext)();
   let audioBuffer = null;
+  let isPlaying = false;
+  let playheadReqId = null;
   let zoomLevel = 1;
   let panOffset = 0;
 
@@ -216,6 +218,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const waveformContainer = document.getElementById("waveformContainer");
   const waveformCanvas = document.getElementById("waveformCanvas");
   const canvasCtx = waveformCanvas.getContext("2d");
+  const playheadDiv = document.getElementById("playhead");
+  const waveformPlayheadDiv = document.getElementById("waveformPlayhead");
 
   function formatTime(t) {
     const totalMs = Math.floor(t * 1000);
@@ -595,6 +599,10 @@ document.addEventListener("DOMContentLoaded", () => {
   let captionsEnabled = true;
 
   const fullscreenBtn = document.getElementById("fullscreen-btn");
+  const timelineContainer = document.getElementById("timelineContainer");
+  const timelineCanvas = document.getElementById("timelineCanvas");
+  const timelineCtx = timelineCanvas.getContext("2d");
+  let timelineEnabled = false;
 
   document.addEventListener("keydown", (e) => {
     if (e.code === "Enter") {
@@ -659,6 +667,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  timelineCanvas.style.display = "none";
 
   const fileInput = document.getElementById("fileInput");
   const videoContainer = document.getElementById("video-container");
@@ -764,6 +773,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (!isNaN(newTime)) {
       video.currentTime = newTime;
+      drawTimeline();
       updateTimeDisplay();
 
       video.play();
@@ -789,6 +799,10 @@ document.addEventListener("DOMContentLoaded", () => {
     video.addEventListener(
       "loadedmetadata",
       () => {
+        playheadDiv.style.display = "block";
+        waveformPlayheadDiv.style.display = "block";
+        playheadDiv.style.left = "0px";
+        waveformPlayheadDiv.style.left = "0px";
         if (audioBuffer) {
           drawWaveform();
         }
@@ -805,6 +819,10 @@ document.addEventListener("DOMContentLoaded", () => {
     baselineHeight = videoContainer.clientHeight;
     baselineOverlayBottom = baselineHeight * 0.05;
 
+    timelineCanvas.style.display = "block";
+    timelineEnabled = true;
+    resizeTimelineCanvas();
+    drawTimeline();
     videoContainer.style.borderColor = "transparent";
     copyBtn.disabled = false;
 
@@ -832,22 +850,38 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (video.readyState >= 1) {
           waveformContainer.style.visibility = "visible";
+          playheadDiv.style.visibility = "visible";
+          waveformPlayheadDiv.style.visibility = "visible";
+
           drawWaveform();
+
+          updateZoomHighlight();
         }
       })
       .catch((err) => {
         audioBuffer = null;
         drawWaveform();
+
+        updateZoomHighlight();
       });
   }
 
   video.addEventListener("timeupdate", () => {
     if (!isNaN(video.duration)) {
+      drawTimeline();
       updateTimeDisplay();
+    }
+
+    if (!isSeeking && audioBuffer) {
+      updatePlayhead();
     }
   });
 
-  // Removed timeline playhead update on play
+  video.addEventListener("play", () => {
+    if (audioBuffer) {
+      updatePlayhead();
+    }
+  });
 
   function updateSamiOverlay(now, metadata) {
     const t = metadata.mediaTime;
@@ -881,14 +915,59 @@ document.addEventListener("DOMContentLoaded", () => {
     video.requestVideoFrameCallback(updateSamiOverlay);
   });
 
+  video.addEventListener("pause", () => {
+    cancelAnimationFrame(playheadReqId);
+  });
+
   let isScrubbing = false;
+  let isTimelineScrubbing = false;
   let scrubTimeout;
 
   let wasScrubbing = false;
   let didDrag = false;
   let dragStartX = 0;
 
-  // Removed timeline canvas seeking functionality
+  function seekTimelineCanvas(e) {
+    const rect = timelineCanvas.getBoundingClientRect();
+    let x = e.clientX - rect.left;
+    x = Math.max(0, Math.min(x, rect.width));
+    const newTime = (x / rect.width) * video.duration;
+    if (!isNaN(newTime)) {
+      video.currentTime = newTime;
+      drawTimeline();
+      updatePlayhead();
+      video.play();
+      clearTimeout(scrubTimeout);
+      scrubTimeout = setTimeout(() => {
+        video.pause();
+      }, 100);
+    }
+  }
+
+  timelineCanvas.addEventListener("pointerdown", (e) => {
+    if (!video.src) return;
+    isTimelineScrubbing = true;
+    video.pause();
+    seekTimelineCanvas(e);
+  });
+
+  timelineCanvas.addEventListener("pointermove", (e) => {
+    if (!isTimelineScrubbing || isNaN(video.duration)) return;
+    seekTimelineCanvas(e);
+  });
+
+  window.addEventListener("pointerup", () => {
+    if (!isTimelineScrubbing) return;
+    isTimelineScrubbing = false;
+    clearTimeout(scrubTimeout);
+    video.pause();
+  });
+
+  video.addEventListener("loadedmetadata", () => {
+    timeDisplay.disabled = false;
+    resizeTimelineCanvas();
+    drawTimeline();
+  });
 
   timeDisplay.addEventListener("click", (e) => {
     e.preventDefault();
@@ -908,6 +987,8 @@ document.addEventListener("DOMContentLoaded", () => {
     if (t != null && !isNaN(video.duration)) {
       video.currentTime = Math.min(t, video.duration);
 
+      drawTimeline();
+      updatePlayhead();
       video.play();
       clearTimeout(scrubTimeout);
       scrubTimeout = setTimeout(() => {
@@ -943,10 +1024,15 @@ document.addEventListener("DOMContentLoaded", () => {
       fullscreenBtn.disabled = true;
 
       timeDisplay.value = "00:00.000";
+      timelineEnabled = false;
+      timelineCanvas.style.display = "none";
+      drawTimeline();
 
       fileInput.value = "";
 
       waveformContainer.style.visibility = "hidden";
+      playheadDiv.style.display = "none";
+      waveformPlayheadDiv.style.display = "none";
     }
   });
 
@@ -965,6 +1051,33 @@ document.addEventListener("DOMContentLoaded", () => {
 
   window.addEventListener("resize", updateOutputBounds);
 
+  function updateZoomHighlight() {
+    if (!audioBuffer || isNaN(video.duration)) {
+      document.getElementById("zoomHighlight").style.width = "0";
+      return;
+    }
+
+    const totalSamples = audioBuffer.length;
+    const duration = video.duration;
+
+    const segmentLength = Math.floor(totalSamples / zoomLevel);
+    const startSample = Math.floor(panOffset);
+    const endSample = startSample + segmentLength;
+
+    const startTime = (startSample / totalSamples) * duration;
+    const endTime = Math.min(
+      (endSample / totalSamples) * duration,
+      duration
+    );
+
+    const startPct = (startTime / duration) * 100;
+    const widthPct = ((endTime - startTime) / duration) * 100;
+
+    const highlight = document.getElementById("zoomHighlight");
+    highlight.style.left = `${startPct}%`;
+    highlight.style.width = `${widthPct}%`;
+  }
+
   function resizeWaveformCanvas() {
     const rect = waveformContainer.getBoundingClientRect();
     waveformCanvas.width = rect.width;
@@ -972,8 +1085,28 @@ document.addEventListener("DOMContentLoaded", () => {
     drawWaveform();
   }
 
+  function resizeTimelineCanvas() {
+    const rect = timelineContainer.getBoundingClientRect();
+    timelineCanvas.width = rect.width;
+    timelineCanvas.height = rect.height;
+    drawTimeline();
+  }
+
+  function drawTimeline() {
+    const width = timelineCanvas.width;
+    const height = timelineCanvas.height;
+    timelineCtx.clearRect(0, 0, width, height);
+    if (!timelineEnabled || isNaN(video.duration) || video.duration === 0)
+      return;
+    // The red playhead is now rendered via the CSS #playhead element.
+  }
+
   window.addEventListener("resize", resizeWaveformCanvas);
+  window.addEventListener("resize", resizeTimelineCanvas);
   resizeWaveformCanvas();
+  resizeTimelineCanvas();
+
+  updateZoomHighlight();
 
   let controlTimeout;
   const player = document.getElementById("player-container");
@@ -2078,7 +2211,28 @@ ${styleLines}
 
       panOffset = desiredPan;
       drawWaveform();
+      updateZoomHighlight();
 
+      const phW = playheadDiv.offsetWidth;
+      const visW = timelineContainer.clientWidth;
+
+      let relX;
+      if (segmentLength >= totalSamples) {
+        relX = currentSample / totalSamples;
+      } else if (
+        panOffsetTarget > 0 &&
+        panOffsetTarget < totalSamples - segmentLength
+      ) {
+        relX = 0.5;
+      } else {
+        relX = (currentSample - panOffset) / segmentLength;
+      }
+
+      let cssX = relX * (visW - phW);
+
+      cssX = Math.max(0, Math.min(visW - phW, cssX));
+      playheadDiv.style.left = cssX + "px";
+      waveformPlayheadDiv.style.left = cssX + "px";
     }
   });
 
@@ -2490,6 +2644,74 @@ ${styleLines}
     }
   }
 
+  function updatePlayhead() {
+    if (video.paused || isSeeking) {
+      cancelAnimationFrame(playheadReqId);
+      return;
+    }
+
+    const currentTime = video.currentTime;
+    const duration = video.duration;
+    const totalSamples = audioBuffer ? audioBuffer.length : 0;
+    const currentSample =
+      duration > 0 ? (currentTime / duration) * totalSamples : 0;
+
+    const segmentLength = Math.floor(totalSamples / zoomLevel);
+
+    let desiredPan;
+    if (segmentLength >= totalSamples) {
+      desiredPan = 0;
+    } else {
+      desiredPan = currentSample - segmentLength / 2;
+    }
+
+    if (desiredPan < 0) desiredPan = 0;
+    if (desiredPan > totalSamples - segmentLength) {
+      desiredPan = totalSamples - segmentLength;
+    }
+
+    panOffsetTarget = desiredPan;
+
+    panOffset += (panOffsetTarget - panOffset) * panSmooth;
+
+    if (Math.abs(panOffset - panOffsetTarget) < 0.5) {
+      panOffset = panOffsetTarget;
+    }
+
+    drawWaveform();
+    updateZoomHighlight();
+
+    let xPos;
+    if (segmentLength >= totalSamples) {
+      xPos = (currentSample / totalSamples) * waveformCanvas.width;
+    } else {
+      if (
+        panOffsetTarget > 0 &&
+        panOffsetTarget < totalSamples - segmentLength
+      ) {
+        xPos = waveformCanvas.width / 2;
+      } else {
+        xPos =
+          ((currentSample - panOffset) / segmentLength) *
+          waveformCanvas.width;
+      }
+    }
+
+    const timelineW = timelineContainer.getBoundingClientRect().width;
+    const internalW = waveformCanvas.width;
+
+    const phW = playheadDiv.offsetWidth;
+    const scaleFactor = (timelineW - phW) / internalW;
+
+    let cssX = xPos * scaleFactor;
+
+    cssX = Math.max(0, Math.min(timelineW - phW, cssX));
+    playheadDiv.style.left = cssX + "px";
+    waveformPlayheadDiv.style.left = cssX + "px";
+
+    playheadReqId = requestAnimationFrame(updatePlayhead);
+  }
+
   let singleFrameTimeout;
 
   waveformCanvas.addEventListener("mousedown", (e) => {
@@ -2542,6 +2764,7 @@ ${styleLines}
             )
           );
           drawWaveform();
+          updateZoomHighlight();
         }, SCROLL_INTERVAL_MS);
       }
     }
@@ -2591,9 +2814,21 @@ ${styleLines}
     panOffset = newPan;
 
     drawWaveform();
+    updateZoomHighlight();
+
+    const phW = playheadDiv.offsetWidth;
+    const visW = timelineContainer.clientWidth;
+    const relX = (targetSample - panOffset) / segmentLength;
+
+    let cssX = relX * (visW - phW);
+
+    cssX = Math.max(0, Math.min(visW - phW, cssX));
+    playheadDiv.style.left = cssX + "px";
+    waveformPlayheadDiv.style.left = cssX + "px";
 
     const newTime = (targetSample / totalSamples) * video.duration;
     video.currentTime = newTime;
+    drawTimeline();
     updateTimeDisplay();
   }
 
@@ -2602,9 +2837,10 @@ ${styleLines}
     e.preventDefault();
 
     const totalSamples = audioBuffer.length;
-    const width = waveformCanvas.width;
+    const width = timelineContainer.clientWidth;
 
-    const headRatio = 0.5;
+    const playheadStyleLeft = parseFloat(playheadDiv.style.left) || 0;
+    const headRatio = playheadStyleLeft / width;
 
     const zoomFactor = 1.2;
     let newZoom =
@@ -2623,6 +2859,13 @@ ${styleLines}
     panOffset = newPan;
 
     drawWaveform();
+
+    updateZoomHighlight();
+
+    if (!video.paused) {
+      cancelAnimationFrame(playheadReqId);
+      updatePlayhead();
+    }
   });
 
   document.body.addEventListener("dragstart", (e) => {

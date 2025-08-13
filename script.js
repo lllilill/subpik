@@ -598,7 +598,10 @@ document.addEventListener("DOMContentLoaded", () => {
   let captionsEnabled = true;
 
   const fullscreenBtn = document.getElementById("fullscreen-btn");
-  const timeline = document.getElementById("timeline");
+  const timelineContainer = document.getElementById("timelineContainer");
+  const timelineCanvas = document.getElementById("timelineCanvas");
+  const timelineCtx = timelineCanvas.getContext("2d");
+  let timelineEnabled = false;
 
   document.addEventListener("keydown", (e) => {
     if (e.code === "Enter") {
@@ -663,8 +666,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  timeline.classList.add("no-thumb");
-  timeline.disabled = true;
+  timelineCanvas.style.display = "none";
 
   const fileInput = document.getElementById("fileInput");
   const videoContainer = document.getElementById("video-container");
@@ -770,7 +772,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (!isNaN(newTime)) {
       video.currentTime = newTime;
-      timeline.value = newTime;
+      drawTimeline();
       updateTimeDisplay();
 
       video.play();
@@ -814,10 +816,10 @@ document.addEventListener("DOMContentLoaded", () => {
     baselineHeight = videoContainer.clientHeight;
     baselineOverlayBottom = baselineHeight * 0.05;
 
-    timeline.classList.remove("no-thumb");
-    timeline.disabled = false;
-
-    timeline.style.display = "block";
+    timelineCanvas.style.display = "block";
+    timelineEnabled = true;
+    resizeTimelineCanvas();
+    drawTimeline();
     videoContainer.style.borderColor = "transparent";
     copyBtn.disabled = false;
 
@@ -862,7 +864,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   video.addEventListener("timeupdate", () => {
     if (!isNaN(video.duration)) {
-      timeline.value = video.currentTime;
+      drawTimeline();
       updateTimeDisplay();
     }
 
@@ -914,52 +916,53 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   let isScrubbing = false;
+  let isTimelineScrubbing = false;
   let scrubTimeout;
 
   let wasScrubbing = false;
   let didDrag = false;
   let dragStartX = 0;
 
-  timeline.addEventListener("pointerdown", () => {
+  function seekTimelineCanvas(e) {
+    const rect = timelineCanvas.getBoundingClientRect();
+    let x = e.clientX - rect.left;
+    x = Math.max(0, Math.min(x, rect.width));
+    const newTime = (x / rect.width) * video.duration;
+    if (!isNaN(newTime)) {
+      video.currentTime = newTime;
+      drawTimeline();
+      updatePlayhead();
+      video.play();
+      clearTimeout(scrubTimeout);
+      scrubTimeout = setTimeout(() => {
+        video.pause();
+      }, 100);
+    }
+  }
+
+  timelineCanvas.addEventListener("pointerdown", (e) => {
     if (!video.src) return;
-    isScrubbing = true;
+    isTimelineScrubbing = true;
     video.pause();
-  });
-  timeline.addEventListener("touchstart", () => {
-    if (!video.src) return;
-    isScrubbing = true;
-    video.pause();
+    seekTimelineCanvas(e);
   });
 
-  timeline.addEventListener("input", () => {
-    if (!isScrubbing || isNaN(video.duration)) return;
-    video.currentTime = timeline.value;
-
-    updatePlayhead();
-
-    video.play();
-    clearTimeout(scrubTimeout);
-    scrubTimeout = setTimeout(() => {
-      video.pause();
-    }, 100);
+  timelineCanvas.addEventListener("pointermove", (e) => {
+    if (!isTimelineScrubbing || isNaN(video.duration)) return;
+    seekTimelineCanvas(e);
   });
 
-  timeline.addEventListener("pointerup", () => {
-    if (!isScrubbing) return;
-    isScrubbing = false;
-    clearTimeout(scrubTimeout);
-    video.pause();
-  });
-  timeline.addEventListener("touchend", () => {
-    if (!isScrubbing) return;
-    isScrubbing = false;
+  window.addEventListener("pointerup", () => {
+    if (!isTimelineScrubbing) return;
+    isTimelineScrubbing = false;
     clearTimeout(scrubTimeout);
     video.pause();
   });
 
   video.addEventListener("loadedmetadata", () => {
-    timeline.max = video.duration;
     timeDisplay.disabled = false;
+    resizeTimelineCanvas();
+    drawTimeline();
   });
 
   timeDisplay.addEventListener("click", (e) => {
@@ -980,8 +983,13 @@ document.addEventListener("DOMContentLoaded", () => {
     if (t != null && !isNaN(video.duration)) {
       video.currentTime = Math.min(t, video.duration);
 
-      timeline.value = video.currentTime;
-      timeline.dispatchEvent(new Event("input"));
+      drawTimeline();
+      updatePlayhead();
+      video.play();
+      clearTimeout(scrubTimeout);
+      scrubTimeout = setTimeout(() => {
+        video.pause();
+      }, 100);
       updateTimeDisplay();
     } else {
       timeDisplay.value = formatTime(video.currentTime);
@@ -1012,10 +1020,9 @@ document.addEventListener("DOMContentLoaded", () => {
       fullscreenBtn.disabled = true;
 
       timeDisplay.value = "00:00.000";
-      timeline.value = 0;
-      timeline.max = 0;
-      timeline.classList.add("no-thumb");
-      timeline.disabled = true;
+      timelineEnabled = false;
+      timelineCanvas.style.display = "none";
+      drawTimeline();
 
       fileInput.value = "";
 
@@ -1073,8 +1080,28 @@ document.addEventListener("DOMContentLoaded", () => {
     drawWaveform();
   }
 
+  function resizeTimelineCanvas() {
+    const rect = timelineContainer.getBoundingClientRect();
+    timelineCanvas.width = rect.width;
+    timelineCanvas.height = rect.height;
+    drawTimeline();
+  }
+
+  function drawTimeline() {
+    const width = timelineCanvas.width;
+    const height = timelineCanvas.height;
+    timelineCtx.clearRect(0, 0, width, height);
+    if (!timelineEnabled || isNaN(video.duration) || video.duration === 0)
+      return;
+    const x = (video.currentTime / video.duration) * width;
+    timelineCtx.fillStyle = "red";
+    timelineCtx.fillRect(x - 2, 0, 4, height);
+  }
+
   window.addEventListener("resize", resizeWaveformCanvas);
+  window.addEventListener("resize", resizeTimelineCanvas);
   resizeWaveformCanvas();
+  resizeTimelineCanvas();
 
   updateZoomHighlight();
 
@@ -2799,6 +2826,8 @@ ${styleLines}
 
     const newTime = (targetSample / totalSamples) * video.duration;
     video.currentTime = newTime;
+    drawTimeline();
+    updateTimeDisplay();
   }
 
   waveformCanvas.addEventListener("wheel", (e) => {

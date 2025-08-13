@@ -1175,7 +1175,7 @@ button,
 
 #invalidInputPopup {
   max-height: 280px;
-  overflow: hidden;
+  overflow: visible;
   font-size: 14px;
   font-weight: 500;
 }
@@ -1186,7 +1186,7 @@ button,
   padding: 20px;
   box-sizing: border-box;
   max-height: 280px;
-  overflow: visible;
+  overflow: hidden;
 }
 
 #invalidInputPopup .center-popup-content h2 {
@@ -1415,7 +1415,7 @@ body.modal-open * {
   padding: 0;
   top: 0;
   height: 100px;
-  overflow: visible;
+  overflow: hidden;
 
   user-select: none;
   box-sizing: border-box;

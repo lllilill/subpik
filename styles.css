@@ -1708,3 +1708,15 @@ body.modal-open * {
 #copy-btn.active .material-icons {
   color: #4285f4;
 }
+
+#playhead,
+#waveformPlayhead {
+  position: absolute;
+  top: 0;
+  width: 2px;
+  height: 100%;
+  background-color: #ff0000;
+  pointer-events: none;
+  display: none;
+  z-index: 3;
+}

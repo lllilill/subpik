@@ -1,5 +1,7 @@
+/* Global app font used across the compact subtitle editing interface. */
 @import url("https://fonts.googleapis.com/css2?family=Nunito:wght@700;900&display=swap");
 
+/* Wrappers keep each generated subtitle section centered in the editor column. */
 .section-wrapper {
   width: 100%;
   display: flex;
@@ -7,16 +9,19 @@
   align-items: center;
 }
 
+/* The UI uses a heavy display style by default; inputs are relaxed below. */
 * {
   font-family: "Nunito", sans-serif !important;
   font-weight: 900 !important;
 }
 
+/* Text entry needs slightly lighter weight for readability while typing. */
 input,
 textarea {
   font-weight: 700 !important;
 }
 
+/* Root page layout: fixed-height two-pane editor with horizontal sections. */
 body {
   background: #fff;
   display: flex;
@@ -25,6 +30,7 @@ body {
   margin: 0;
 }
 
+/* Main editor content width guard. */
 .container {
   max-width: 1200px;
   width: 100%;
@@ -32,6 +38,7 @@ body {
   text-align: center;
 }
 
+/* Legacy fixed title/logo styles retained for older title markup. */
 #titleHeading {
   position: fixed;
   top: -10px;
@@ -50,6 +57,7 @@ body {
   color: #000000;
 }
 
+/* Base input styling shared by title, timestamps, and subtitle text fields. */
 input {
   width: 100px;
   height: 25px;
@@ -57,6 +65,7 @@ input {
   border-radius: 3px;
 }
 
+/* Title field sits above the generated language sections. */
 #titleInput {
   width: auto;
   min-width: 150px;
@@ -70,6 +79,7 @@ input {
   width: auto;
 }
 
+/* A language container holds all subtitle sections for one language. */
 .section-container {
   width: 100%;
   box-sizing: border-box;
@@ -79,6 +89,7 @@ input {
   align-items: center;
 }
 
+/* Colored subtitle card generated for each timed caption block. */
 .input-section {
   display: flex;
   flex-direction: column;
@@ -93,6 +104,7 @@ input {
   background: var(--lang-color);
 }
 
+/* Section number badge centered at the top of a subtitle block. */
 .section-number {
   color: #fff;
   position: absolute;
@@ -103,12 +115,14 @@ input {
   font-size: 20px;
 }
 
+/* Rows stack vertically inside each subtitle section. */
 .section-content {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
 }
 
+/* Start-time/text rows and the final end-time row share horizontal alignment. */
 .input-group,
 .last-time-input {
   display: flex;
@@ -139,11 +153,13 @@ input {
   width: 100px;
 }
 
+/* View-only sections hide per-line add controls until their language is ready. */
 .section-view-only .add-btn {
   opacity: 0;
   pointer-events: none;
 }
 
+/* Base button geometry before specialized icon and language styles override it. */
 button {
   width: 110px;
   height: 40px;
@@ -157,12 +173,14 @@ button {
   transition: transform 0.15s;
 }
 
+/* Inline add/remove controls inherit the section color area behind them. */
 .input-section .add-btn,
 .input-section .remove-btn {
   background: none;
   color: #fff;
 }
 
+/* Add-section buttons live below each section and at the top of containers. */
 .add-section-btn {
   position: relative;
   margin-top: 10px;
@@ -174,6 +192,7 @@ button {
   color: #fff;
 }
 
+/* Small hover lift gives controls a tactile feel. */
 button:hover:not(.disabled) {
   transform: scale(1.08);
 }
@@ -187,6 +206,7 @@ button:disabled:hover {
   transform: none !important;
 }
 
+/* Plus/minus row controls are custom-drawn with pseudo-elements. */
 .add-btn,
 .remove-btn {
   display: inline-flex;
@@ -205,6 +225,7 @@ button:disabled:hover {
   position: relative;
 }
 
+/* Add row button animates in only when the section is editable. */
 .add-btn {
   position: absolute;
   right: 0;
@@ -214,12 +235,14 @@ button:disabled:hover {
   pointer-events: none;
 }
 
+/* Remove row button stays visible so sections can be pruned quickly. */
 .remove-btn {
   position: relative;
   margin-left: -5px;
   margin-right: 7px;
 }
 
+/* Draw plus/minus symbols without image assets. */
 .add-btn::before,
 .remove-btn::before,
 .add-btn::after {
@@ -251,6 +274,7 @@ button:disabled:hover {
   transition: transform 0.12s ease;
 }
 
+/* Add-section buttons use an icon-like plus symbol instead of visible text. */
 .add-section-btn:after {
   content: attr(data-lang);
 }
@@ -260,6 +284,7 @@ button:disabled:hover {
   font-weight: 900;
 }
 
+/* Language toggles and add-section buttons share the same compact button shell. */
 .lang-btn,
 .add-section-btn {
   display: flex;
@@ -270,6 +295,7 @@ button:disabled:hover {
   touch-action: none;
 }
 
+/* Generated SAMI output area; hidden/positioned dynamically by script.js. */
 #output {
   display: none;
   margin-top: 10px;
@@ -287,10 +313,12 @@ button:disabled:hover {
   outline: none;
 }
 
+/* Generic utility class used by modals, output, and controls. */
 .hidden {
   display: none;
 }
 
+/* Vertical language toggle strip fixed in the editor area. */
 .language-toggle {
   position: fixed;
   top: 20px;
@@ -302,6 +330,7 @@ button:disabled:hover {
   z-index: 1040;
 }
 
+/* Plus button that opens the language picker. */
 .lang-add-btn {
   width: 40px;
   height: 40px;
@@ -315,6 +344,7 @@ button:disabled:hover {
   display: block;
 }
 
+/* Active language buttons are colored from language-specific CSS variables. */
 .lang-btn {
   width: 80px;
   height: 40px;
@@ -334,6 +364,7 @@ button:disabled:hover {
   position: relative;
 }
 
+/* Drag target feedback when copying timing structure between languages. */
 .lang-btn.drop-target {
   box-shadow: 0 0 0 3px rgba(0, 150, 255, 0.9) inset,
     0 0 8px rgba(0, 150, 255, 0.7);
@@ -341,11 +372,13 @@ button:disabled:hover {
   transition: box-shadow 0.15s, transform 0.15s;
 }
 
+/* Active language buttons are shown in the language strip. */
 .lang-btn.active {
   background: var(--btn-color);
   color: #fff;
 }
 
+/* Ready language buttons allow detailed editing and show a highlight stripe. */
 .lang-btn.ready {
   position: relative;
 }
@@ -379,10 +412,12 @@ button:disabled:hover {
   z-index: 9998;
 }
 
+/* Legacy download button selector retained for older markup. */
 #downloadButton {
   margin-top: 0px;
 }
 
+/* Fullscreen overlay for choosing additional languages. */
 .lang-modal {
   position: absolute;
   top: 100%;
@@ -400,6 +435,7 @@ button:disabled:hover {
   height: 0;
 }
 
+/* Scrollable picker surface positioned beside the language strip. */
 .lang-modal-content {
   position: relative;
   width: 100px;
@@ -427,6 +463,7 @@ button:disabled:hover {
   top: 18px;
 }
 
+/* Inner scroll list; script.js clones items to simulate infinite scrolling. */
 .lang-modal-scroll {
   top: 0;
   left: 0;
@@ -482,6 +519,7 @@ button:disabled:hover {
   z-index: 2000;
 }
 
+/* Buttons inside the language picker mirror each language color. */
 .lang-modal-content .lang-select-btn {
   margin-bottom: -2px;
   position: relative;
@@ -516,6 +554,7 @@ button:disabled:hover {
   transform: none !important;
 }
 
+/* Right-hand editor pane with independent vertical scrolling. */
 .main-content {
   margin-left: 40%;
   width: 100%;
@@ -527,6 +566,7 @@ button:disabled:hover {
   padding-bottom: 50px;
 }
 
+/* Media player column keeps video, timeline, and waveform stacked together. */
 .video-panel #player-container {
   background: #000000;
   padding: 0px;
@@ -538,6 +578,7 @@ button:disabled:hover {
   margin: 0 auto;
 }
 
+/* Player flex shell; fullscreen rules below reshape this container. */
 #player-container {
   display: flex;
   flex-direction: column;
@@ -545,6 +586,7 @@ button:disabled:hover {
   gap: 4px;
 }
 
+/* Click/drop target for video or audio files. */
 .video-panel #video-container {
   width: 100%;
   position: relative;
@@ -560,6 +602,7 @@ button:disabled:hover {
   flex: 0 0 auto;
 }
 
+/* Fullscreen player should fill the viewport without the editor chrome. */
 #player-container:-webkit-full-screen,
 #player-container:fullscreen {
   padding: 0 !important;
@@ -570,6 +613,7 @@ button:disabled:hover {
   background: transparent !important;
 }
 
+/* In fullscreen, the video container becomes the entire stage. */
 #player-container:-webkit-full-screen #video-container,
 #player-container:fullscreen #video-container {
   position: absolute;
@@ -583,6 +627,7 @@ button:disabled:hover {
   background: transparent !important;
 }
 
+/* Fullscreen media covers the stage for subtitle preview. */
 #player-container:-webkit-full-screen video,
 #player-container:fullscreen video {
   width: 100% !important;
@@ -592,6 +637,7 @@ button:disabled:hover {
   border-radius: 0 !important;
 }
 
+/* Fullscreen controls are hidden until the user moves the mouse. */
 #player-container:-webkit-full-screen .controls,
 #player-container:fullscreen .controls {
   opacity: 0;
@@ -604,6 +650,7 @@ button:disabled:hover {
   pointer-events: none;
 }
 
+/* Fullscreen timeline appears at the bottom as a temporary scrub control. */
 #player-container:-webkit-full-screen #timelineContainer,
 #player-container:fullscreen #timelineContainer {
   position: absolute !important;
@@ -670,11 +717,13 @@ button:disabled:hover {
   display: none !important;
 }
 
+/* The waveform is editing-only, so it is hidden while previewing fullscreen. */
 #player-container:fullscreen #waveformContainer,
 #player-container:-webkit-full-screen #waveformContainer {
   display: none;
 }
 
+/* Loaded media fills the 16:9 stage; hidden until a file is selected. */
 .video-panel video {
   width: 100%;
   height: 100%;
@@ -684,6 +733,7 @@ button:disabled:hover {
   display: none;
 }
 
+/* Placeholder text sits in the empty media drop zone. */
 .video-panel #video-placeholder {
   position: absolute;
   text-align: center;
@@ -692,6 +742,7 @@ button:disabled:hover {
   pointer-events: none;
 }
 
+/* Timeline canvas receives pointer events; playhead is drawn as a separate div. */
 .video-panel #timelineCanvas {
   position: absolute;
   left: 0;
@@ -705,6 +756,7 @@ button:disabled:hover {
   z-index: 3;
 }
 
+/* Legacy control row layout retained for older control markup. */
 .video-panel .controls {
   display: flex;
   flex-wrap: wrap;
@@ -714,6 +766,7 @@ button:disabled:hover {
   padding: 0;
 }
 
+/* Generic media control button style. */
 .control-btn {
   padding: 8px 14px;
   margin-left: 10px;
@@ -751,6 +804,7 @@ button:disabled:hover {
   color: #4b5563;
 }
 
+/* Media-panel-specific button treatment. */
 .video-panel button {
   padding: 8px 14px;
   border-radius: 8px;
@@ -775,6 +829,7 @@ button:disabled:hover {
   text-align: center;
 }
 
+/* Draggable vertical divider between the media pane and subtitle editor. */
 #divider {
   position: absolute;
   top: 0;
@@ -791,6 +846,7 @@ button:disabled:hover {
   background: transparent;
 }
 
+/* Wider invisible hit area makes the divider easier to grab. */
 #divider::before {
   content: "";
   position: absolute;
@@ -819,6 +875,7 @@ input[type="range"]:disabled:hover {
   cursor: default !important;
 }
 
+/* Timer button state is controlled by script.js when media is loaded. */
 #copy-btn {
   position: relative;
 }
@@ -862,6 +919,7 @@ input.error:focus {
   display: none !important;
 }
 
+/* Custom plus icon used by the add-language button. */
 .icon {
   width: 16px;
   height: 16px;
@@ -869,6 +927,7 @@ input.error:focus {
   cursor: pointer;
   margin-top: -8px;
 }
+/* Bars combine into the animated plus/cross shape. */
 .bar {
   position: absolute;
   background: #fff;
@@ -904,6 +963,7 @@ input.error:focus {
   transform-origin: left center;
 }
 
+/* Rotate bars when the language picker is open. */
 #addLanguageButton.active .bar.horizontal.left {
   top: -1.5px;
   left: 1px;
@@ -915,6 +975,7 @@ input.error:focus {
   transform: rotate(45deg);
 }
 
+/* Shared dimming layer behind popups and the language picker. */
 .modal-backdrop {
   position: fixed;
   top: 0;
@@ -931,12 +992,14 @@ input.error:focus {
   display: none;
 }
 
+/* Fixed position for the language add button within the toggle strip. */
 #addLanguageButton {
   top: 16px;
   position: relative;
   z-index: 1100;
 }
 
+/* Temporary interaction shield around active language buttons. */
 #toggleBackdrop {
   position: fixed;
   background: rgba(0, 0, 0, 0.6);
@@ -946,11 +1009,13 @@ input.error:focus {
   display: none;
 }
 
+/* Covered language buttons are dimmed while the picker is active. */
 .lang-btn.covered {
   pointer-events: none;
 }
 
 button,
+/* Disable text selection on control-like UI elements. */
 .lang-btn,
 .add-btn,
 .remove-btn,
@@ -987,6 +1052,7 @@ button,
   background-repeat: no-repeat;
 }
 
+/* Ready language buttons fill in as a visual completion cue. */
 @keyframes slideFill {
   from {
     background-size: 0% 100%;
@@ -1000,6 +1066,7 @@ button,
   animation: slideFill 0.3s forwards ease-out;
 }
 
+/* Center popup overlay for validation errors. */
 .center-popup-overlay {
   position: fixed;
   top: 0;
@@ -1019,6 +1086,7 @@ button,
   pointer-events: auto;
 }
 
+/* Validation popup shell. */
 .center-popup {
   position: fixed;
   top: 50%;
@@ -1042,6 +1110,7 @@ button,
   transform: translate(-50%, -50%);
 }
 
+/* Close affordance for centered popups. */
 .center-popup-close {
   position: absolute;
   top: 8px;
@@ -1056,6 +1125,7 @@ button,
   text-align: center;
 }
 
+/* Position the Pickr popup using custom properties set from script.js. */
 .pickr {
   position: fixed !important;
   top: 50% !important;
@@ -1065,11 +1135,13 @@ button,
   z-index: 10000 !important;
 }
 
+/* Hide Pickr's default trigger because a hidden button is used as the anchor. */
 .pcr-button,
 .pickr__button {
   display: none !important;
 }
 
+/* Pickr panel lives above the temporary dimming overlay. */
 .pcr-app {
   display: none !important;
 }
@@ -1085,6 +1157,7 @@ button,
   z-index: 10010 !important;
 }
 
+/* Top-level add-section buttons inside language containers. */
 .section-container > button {
   position: relative;
 }
@@ -1097,6 +1170,7 @@ button,
   border-bottom-left-radius: 0;
 }
 
+/* Add-section buttons also draw their plus sign via pseudo-elements. */
 .add-section-btn::before,
 .section-container > button::before {
   content: "";
@@ -1109,6 +1183,7 @@ button,
   pointer-events: none;
 }
 
+/* Decorative notch that visually connects a section to its controls. */
 .input-section::before {
   content: "";
   position: absolute;
@@ -1129,14 +1204,17 @@ button,
   background-color: var(--section-btn-color);
 }
 
+/* Keep the language add button stable on hover. */
 #addLanguageButton.lang-add-btn.icon:hover {
   transform: scale(1.22) !important;
 }
 
+/* Raise the language strip above the color picker overlay. */
 .language-toggle.on-top {
   z-index: 10002 !important;
 }
 
+/* Keep the button being edited above the dimmed language strip. */
 .lang-btn.pickr-open {
   z-index: 10002 !important;
 
@@ -1144,12 +1222,14 @@ button,
   transform: scale(1.08) !important;
 }
 
+/* Dim inactive language buttons while color selection is open. */
 .language-toggle .dim {
   opacity: 0;
   transition: opacity 0.3s ease;
   pointer-events: none !important;
 }
 
+/* Entry animation for newly available add controls. */
 @keyframes rotateInBounce {
   0% {
     transform: rotate(-360deg) scale(0);
@@ -1173,6 +1253,7 @@ button,
   animation: rotateInBounce 0.8s ease-out forwards;
 }
 
+/* Entry animation for remove controls. */
 @keyframes flipInBounce {
   0% {
     transform: rotateX(-90deg) scale(0);
@@ -1203,6 +1284,7 @@ button,
   animation: flipInBounce 0.7s ease-out forwards;
 }
 
+/* Validation popup sizing. */
 #invalidInputPopup {
   max-height: 280px;
   overflow: visible;
@@ -1248,6 +1330,7 @@ html {
   margin: 0;
 }
 
+/* Narrow hover handle that reveals the bookmark rail. */
 #handle {
   position: fixed;
   top: 0;
@@ -1258,6 +1341,7 @@ html {
   z-index: 100;
 }
 
+/* Bookmark rail container; visible while hovered. */
 #container {
   position: fixed;
   top: 0;
@@ -1274,6 +1358,7 @@ html {
   opacity: 1;
 }
 
+/* One bookmark dot per visible language section. */
 .bookmark {
   position: absolute;
   right: 23px;
@@ -1289,6 +1374,7 @@ html {
   transform: scale(1.58);
 }
 
+/* Floating generate/output toggle button. */
 .click-anim-container {
   position: relative;
   z-index: 60;
@@ -1301,6 +1387,7 @@ html {
   cursor: pointer;
 }
 
+/* Inner animated icon wrapper. */
 .click-anim-inner {
   position: absolute;
   display: flex;
@@ -1312,6 +1399,7 @@ html {
   transform: scale(1.15);
 }
 
+/* Custom arrow/dash pieces used by the generate toggle icon. */
 .arrow,
 .dash {
   display: inline-block;
@@ -1353,6 +1441,7 @@ html {
   border-radius: 3px;
   transition: transform 0.3s ease, margin 0.3s ease, opacity 0.3s ease;
 }
+/* Icon state 0: collapsed/idle. */
 .click-anim-container[data-state="0"] .dash {
   transform: none;
   margin: 0 -24px;
@@ -1361,6 +1450,7 @@ html {
 .click-anim-container[data-state="0"] .arrow-right {
   opacity: 0;
 }
+/* Icon state 1: expanded/generate mode. */
 .click-anim-container[data-state="1"] .dash {
   transform: rotate(-75deg);
   margin: 0 -16px;
@@ -1369,6 +1459,7 @@ html {
 .click-anim-container[data-state="1"] .arrow-right {
   opacity: 1;
 }
+/* Icon state 2: output-view mode. */
 .click-anim-container[data-state="2"] .dash {
   transform: rotate(-75deg);
   margin: 0 -37px;
@@ -1378,12 +1469,14 @@ html {
   opacity: 1;
 }
 
+/* Lock background interactions while validation is visible. */
 body.modal-open * {
   animation-play-state: paused !important;
 
   transition: none !important;
 }
 
+/* Minimal mode hides editing controls and focuses on generated output. */
 .main-content.minimal .container > :not(#output) {
   display: none !important;
 }
@@ -1411,6 +1504,7 @@ body.modal-open * {
   padding-right: 100px;
 }
 
+/* Download is hidden inside fullscreen preview. */
 #player-container:-webkit-full-screen #download-btn,
 #player-container:fullscreen #download-btn {
   display: none !important;
@@ -1426,6 +1520,7 @@ body.modal-open * {
   display: none !important;
 }
 
+/* Disabled time display looks non-interactive before media is loaded. */
 #time-display:disabled {
   background: #f9fafb;
   opacity: 0.5;
@@ -1436,6 +1531,7 @@ body.modal-open * {
   pointer-events: none;
 }
 
+/* Waveform editor below the timeline; hidden until audio decoding succeeds. */
 #waveformContainer {
   position: relative;
   background-color: #f9fafb;
@@ -1453,6 +1549,7 @@ body.modal-open * {
   flex: 1 1 auto;
 }
 
+/* Waveform canvas fills its container and accepts seek/zoom gestures. */
 #waveformCanvas {
   position: absolute;
   left: 0;
@@ -1473,6 +1570,7 @@ body.modal-open * {
   z-index: 3;
 }
 
+/* Live subtitle preview overlay positioned near the bottom of the video. */
 #samiOverlay {
   position: absolute;
   bottom: 5%;
@@ -1487,6 +1585,7 @@ body.modal-open * {
   will-change: transform, opacity;
 }
 
+/* Timeline wrapper provides positioning for playhead and zoom highlight. */
 #timelineContainer {
   display: flex;
   align-items: center;
@@ -1498,6 +1597,7 @@ body.modal-open * {
   box-sizing: border-box;
 }
 
+/* Shows which part of the full timeline is visible in the zoomed waveform. */
 #zoomHighlight {
   position: absolute;
   top: 50%;
@@ -1515,6 +1615,7 @@ body.modal-open * {
   display: none !important;
 }
 
+/* Fixed left toolbar for media and export controls. */
 #leftBar {
   position: fixed;
   top: 0;
@@ -1532,6 +1633,7 @@ body.modal-open * {
   gap: 60px;
 }
 
+/* Legacy title placement inside the toolbar area. */
 #leftBar #titleHeading {
   position: static;
   bottom: auto;
@@ -1559,6 +1661,7 @@ body.modal-open * {
   color: #4285f4;
 }
 
+/* Toolbar button geometry when grouped in a leftbar-controls wrapper. */
 #leftBar .leftbar-controls button {
   padding: 8px 0;
   font-size: 14px;
@@ -1579,6 +1682,7 @@ body.modal-open * {
   pointer-events: none;
 }
 
+/* Left media pane; width is resized by dragging the divider. */
 .video-panel {
   margin-left: 50px;
   height: 100vh;
@@ -1599,6 +1703,7 @@ body.modal-open * {
   margin-left: calc(50px + 40%);
 }
 
+/* Download button appears as an icon-only toolbar action. */
 #leftBar #download-btn {
   position: absolute;
   top: 50%;
@@ -1606,6 +1711,7 @@ body.modal-open * {
   transform: translate(-50%, -50%);
 }
 
+/* Shared icon toolbar button styling. */
 #copy-btn,
 #fullscreen-btn,
 #download-btn {
@@ -1627,6 +1733,7 @@ body.modal-open * {
   background: none !important;
 }
 
+/* Material icon sizing and color. */
 .material-icons {
   font-family: "Material Icons" !important;
   font-weight: normal !important;
@@ -1654,10 +1761,12 @@ body.modal-open * {
   font-size: 24px;
 }
 
+/* Positioning context for overlay controls inside the media stage. */
 #video-container {
   position: relative;
 }
 
+/* Current-time field is fixed to the lower-right of the media stage. */
 #video-container #time-display {
   position: absolute;
   bottom: 10px;
@@ -1681,10 +1790,12 @@ body.modal-open * {
   order: 4;
 }
 
+/* Feedback while dragging a timestamp between fields. */
 .dragging {
   opacity: 0.6;
 }
 
+/* Caption toggle button mirrors the other toolbar icon buttons. */
 #caption-btn {
   background: none !important;
   border: none !important;
@@ -1701,6 +1812,7 @@ body.modal-open * {
   background: none !important;
 }
 
+/* Timer icon opacity communicates whether the time field is visible. */
 #copy-btn .material-icons {
   color: #fff;
 }
@@ -1709,6 +1821,7 @@ body.modal-open * {
   color: #4285f4;
 }
 
+/* DOM playheads are positioned over both the timeline and waveform. */
 #playhead,
 #waveformPlayhead {
   position: absolute;

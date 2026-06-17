@@ -1,3 +1,5 @@
+// Central language registry. Each entry controls the UI label, SAMI class,
+// default subtitle font, default language color, and initial visibility.
 const LANGUAGES = [
   {
     key: "chinese",
@@ -161,26 +163,31 @@ const LANGUAGES = [
   },
 ];
 
+// Fast lookup from SAMI class name such as "KRCC" to its configured font.
 const fontFamilies = LANGUAGES.reduce((acc, { label, fontFamily }) => {
   const code = `${label}CC`;
   acc[code] = fontFamily;
   return acc;
 }, {});
 
+// Fast lookup from SAMI class name to its base point size.
 const fullPt = LANGUAGES.reduce((acc, { label, fontSize }) => {
   const code = `${label}CC`;
   acc[code] = fontSize;
   return acc;
 }, {});
 
+// Expose every language color as a CSS custom property.
 LANGUAGES.forEach(({ label, color }) => {
   const varName = `--lang-${label}CC`;
 
   document.documentElement.style.setProperty(varName, color);
 });
 
+// SAMI class names used throughout generated subtitle sections.
 const LANGUAGE_CODES = LANGUAGES.map((lang) => `${lang.label}CC`);
 
+// Metadata needed to find each language's editor container.
 const LANG = LANGUAGES.reduce((acc, { key, label }) => {
   const code = `${label}CC`;
   acc[code] = {
@@ -190,16 +197,21 @@ const LANG = LANGUAGES.reduce((acc, { key, label }) => {
   return acc;
 }, {});
 
+// Converts user-facing language keys to SAMI class codes.
 const codeMap = LANGUAGES.reduce((acc, { key, label }) => {
   acc[key] = `${label}CC`;
   return acc;
 }, {});
 
+// The app is intentionally dependency-light: after the DOM is ready, all
+// controls, generated sections, media behavior, and export logic are wired here.
 document.addEventListener("DOMContentLoaded", () => {
+  // Auto-scroll is used while dragging the waveform seek handle beyond bounds.
   let autoScrollInterval = null;
   const SCROLL_SPEED_PX = 15;
   const SCROLL_INTERVAL_MS = 40;
 
+  // Audio decoding state used to draw and navigate the waveform.
   const audioContext = new (window.AudioContext ||
     window.webkitAudioContext)();
   let audioBuffer = null;
@@ -208,6 +220,7 @@ document.addEventListener("DOMContentLoaded", () => {
   let zoomLevel = 1;
   let panOffset = 0;
 
+  // Smoothly follows the playhead when the waveform is zoomed in.
   let panOffsetTarget = 0;
   const panSmooth = 0.1;
 
@@ -215,13 +228,14 @@ document.addEventListener("DOMContentLoaded", () => {
   let maxZoom;
   let isSeeking = false;
 
+  // Main waveform and playhead elements reused by seeking, drawing, and resize.
   const waveformContainer = document.getElementById("waveformContainer");
   const waveformCanvas = document.getElementById("waveformCanvas");
   const canvasCtx = waveformCanvas.getContext("2d");
   const playheadDiv = document.getElementById("playhead");
   const waveformPlayheadDiv = document.getElementById("waveformPlayhead");
 
-
+  // Convert seconds to the mm:ss.mmm format used by the visible time field.
   function formatTime(t) {
     const totalMs = Math.floor(t * 1000);
     const ms = totalMs % 1000;
@@ -232,8 +246,10 @@ document.addEventListener("DOMContentLoaded", () => {
       .padStart(2, "0")}.${ms.toString().padStart(3, "0")}`;
   }
 
+  // Parsed cues from the generated SAMI output for live subtitle preview.
   let samiCues = [];
 
+  // Rebuild preview cues whenever the generated SAMI text changes.
   function updateSamiCues() {
     const sami = document.getElementById("output").value;
     if (!sami) return;
@@ -254,11 +270,13 @@ document.addEventListener("DOMContentLoaded", () => {
     samiCues.sort((a, b) => a.start - b.start);
   }
 
+  // Local copy used by subtitle scaling logic while the preview overlay updates.
   const fullPt = LANGUAGES.reduce((acc, { label, fontSize }) => {
     acc[`${label}CC`] = fontSize;
     return acc;
   }, {});
 
+  // Keep subtitle overlay text proportional to the currently displayed video size.
   function updateSubtitleScale() {
     const overlay = document.getElementById("samiOverlay");
     const currentWidth = videoContainer.clientWidth;
@@ -281,12 +299,14 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  // Mirror the media element's current time into the draggable time input.
   function updateTimeDisplay() {
     if (!isNaN(video.duration)) {
       timeDisplay.value = formatTime(video.currentTime);
     }
   }
 
+  // Show all validation failures together so the user can fix them in one pass.
   function showInvalidInputModal(items) {
     const overlay = document.getElementById("invalidInputOverlay");
     const popup = document.getElementById("invalidInputPopup");
@@ -307,12 +327,14 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("download-btn").disabled = true;
   }
 
+  // Remove an error highlight once the user returns to a field.
   function clearInputError(el) {
     if (el && el.classList && el.classList.contains("error")) {
       el.classList.remove("error");
     }
   }
 
+  // File drag handlers let users drop a video or audio file onto the player.
   const onDragOver = (e) => {
     e.preventDefault();
     videoContainer.style.borderColor = "#6b7280";
@@ -333,6 +355,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   };
 
+  // Fullscreen controls are intentionally transient and fade after the mouse rests.
   function showControls() {
     player.classList.add("show-controls");
     clearTimeout(controlTimeout);
@@ -341,6 +364,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 500);
   }
 
+  // Reset language drag state after copy/reorder-style interactions finish.
   function resetDragState() {
     if (dragSourceBtn) dragSourceBtn.style.opacity = "";
     setDropHighlight(null);
@@ -348,6 +372,7 @@ document.addEventListener("DOMContentLoaded", () => {
     dragSourceBtn = null;
   }
 
+  // Build the language toggle buttons from the central registry.
   function renderLanguageButtons() {
     const toggleContainer = document.querySelector(".language-toggle");
     const addBtn = document.getElementById("addLanguageButton");
@@ -375,6 +400,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const addLangBtn = document.getElementById("addLanguageButton");
 
+  // This animated button both generates SAMI output and toggles the output view.
   const clickBtn = document.querySelector(".click-anim-container");
 
   let clickToggle = false;
@@ -464,6 +490,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     });
 
+    // Position the generated SAMI textarea beside the draggable media divider.
     function updateOutputBounds() {
       const output = document.getElementById("output");
       if (output.style.display === "none") return;
@@ -497,6 +524,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }px`;
   }
 
+  // Close validation feedback when the user dismisses the popup or backdrop.
   document
     .getElementById("invalidInputClose")
     .addEventListener("click", () => {
@@ -522,14 +550,18 @@ document.addEventListener("DOMContentLoaded", () => {
       document.body.classList.remove("modal-open");
     });
 
+  // The active language button whose highlight color Pickr is editing.
   let pickrTargetBtn = null;
 
   const video = document.getElementById("video");
 
+  // Start at a moderate volume so newly loaded media is audible but not loud.
   video.volume = 0.5;
 
+  // Dragging the video outside the panel is used as a quick media unload gesture.
   video.setAttribute("draggable", true);
 
+  // Clicking directly on the video should play/pause rather than bubble upward.
   video.addEventListener(
     "click",
     (e) => {
@@ -540,6 +572,7 @@ document.addEventListener("DOMContentLoaded", () => {
     true
   );
 
+  // Disable the unload drag gesture in fullscreen, where dragging feels accidental.
   video.addEventListener("dragstart", (e) => {
     const isFullScreen =
       document.fullscreenElement === player ||
@@ -551,6 +584,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   let volumeIndicatorTimeout;
 
+  // Temporary on-video volume readout shown after mouse-wheel volume changes.
   function showVolumeIndicator(vol) {
     const videoContainer = document.getElementById("video-container");
 
@@ -592,6 +626,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 1000);
   }
 
+  // Toolbar and media-control elements.
   const timeDisplay = document.getElementById("time-display");
   const copyBtn = document.getElementById("copy-btn");
 
@@ -605,6 +640,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const timelineCtx = timelineCanvas.getContext("2d");
   let timelineEnabled = false;
 
+  // Enter toggles fullscreen as a fast keyboard control.
   document.addEventListener("keydown", (e) => {
     if (e.code === "Enter") {
       e.preventDefault();
@@ -615,6 +651,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const sectionContainers = document.getElementById("sectionContainers");
 
+  // "Ready" languages allow detailed per-line timing controls in their sections.
   function setAddButtonsReady(lang, ready) {
     const code = codeMap[lang];
     const sel = `.add-section-btn[data-lang="${code}"]`;
@@ -627,6 +664,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // Create one editor container and top-level add button for every language.
   LANGUAGES.forEach(({ key, label }) => {
     const code = codeMap[key];
     const container = document.createElement("div");
@@ -652,6 +690,7 @@ document.addEventListener("DOMContentLoaded", () => {
     sectionContainers.appendChild(container);
   });
 
+  // Space toggles playback unless the user is typing into an input field.
   document.addEventListener("keydown", (e) => {
     const ae = document.activeElement;
 
@@ -668,11 +707,13 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  // Hide the timeline until a media file has supplied duration metadata.
   timelineCanvas.style.display = "none";
 
   const fileInput = document.getElementById("fileInput");
   const videoContainer = document.getElementById("video-container");
 
+  // Mouse wheel over the media panel controls volume in normal view.
   videoContainer.addEventListener("wheel", (e) => {
     const isFullscreen =
       document.fullscreenElement === player ||
@@ -689,6 +730,7 @@ document.addEventListener("DOMContentLoaded", () => {
     showVolumeIndicator(newVol);
   });
 
+  // In fullscreen, wheel events land on the document, so handle volume there.
   document.addEventListener("wheel", (e) => {
     const isFullscreen =
       document.fullscreenElement === player ||
@@ -702,6 +744,7 @@ document.addEventListener("DOMContentLoaded", () => {
     showVolumeIndicator(newVol);
   });
 
+  // Baseline dimensions are used to scale SAMI overlay text with the video.
   let baselineWidth = videoContainer.clientWidth;
 
   let baselineHeight = videoContainer.clientHeight;
@@ -710,6 +753,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const placeholder = document.getElementById("video-placeholder");
 
+  // Shared play/pause helper used by clicks and keyboard shortcuts.
   function togglePlayPause() {
     if (!video.src || wasScrubbing) return;
 
@@ -719,6 +763,7 @@ document.addEventListener("DOMContentLoaded", () => {
     updateTimeDisplay();
   }
 
+  // Empty player opens the file picker; loaded player toggles playback.
   videoContainer.addEventListener("click", (e) => {
     if (!video.src) {
       fileInput.click();
@@ -728,6 +773,7 @@ document.addEventListener("DOMContentLoaded", () => {
     togglePlayPause();
   });
 
+  // Horizontal drag in fullscreen scrubs through the media.
   videoContainer.addEventListener("mousedown", (e) => {
     const isFullScreen =
       document.fullscreenElement === player ||
@@ -761,6 +807,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  // Convert a horizontal pointer position into a media time.
   function scrubToPosition(e) {
     if (!video.paused) {
       video.pause();
@@ -785,6 +832,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  // Hidden file input fallback for users who click instead of drag/drop.
   fileInput.addEventListener("change", (e) => {
     const file = e.target.files[0];
 
@@ -796,6 +844,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  // Load a media file into the player, decode audio for waveform drawing,
+  // and enable controls that depend on duration metadata.
   function loadVideo(file) {
     video.addEventListener(
       "loadedmetadata",
@@ -867,6 +917,7 @@ document.addEventListener("DOMContentLoaded", () => {
       });
   }
 
+  // Keep timeline, time display, and waveform playhead synchronized during playback.
   video.addEventListener("timeupdate", () => {
     if (!isNaN(video.duration)) {
       drawTimeline();
@@ -884,6 +935,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  // On every rendered video frame, choose the latest cue for each active class.
   function updateSamiOverlay(now, metadata) {
     const t = metadata.mediaTime;
     const lines = [];
@@ -920,6 +972,7 @@ document.addEventListener("DOMContentLoaded", () => {
     cancelAnimationFrame(playheadReqId);
   });
 
+  // Pointer interaction flags for timeline and fullscreen seeking.
   let isScrubbing = false;
   let isTimelineScrubbing = false;
   let scrubTimeout;
@@ -928,6 +981,7 @@ document.addEventListener("DOMContentLoaded", () => {
   let didDrag = false;
   let dragStartX = 0;
 
+  // Seek using the compact timeline just below the video.
   function seekTimelineCanvas(e) {
     const rect = timelineCanvas.getBoundingClientRect();
     let x = e.clientX - rect.left;
@@ -964,12 +1018,14 @@ document.addEventListener("DOMContentLoaded", () => {
     video.pause();
   });
 
+  // Duration metadata unlocks manual time seeking and timeline drawing.
   video.addEventListener("loadedmetadata", () => {
     timeDisplay.disabled = false;
     resizeTimelineCanvas();
     drawTimeline();
   });
 
+  // Clicking the time display pauses so the user can copy or drag the exact time.
   timeDisplay.addEventListener("click", (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -978,6 +1034,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  // If the time display is edited, jump the media to the typed timestamp.
   timeDisplay.addEventListener("blur", () => {
     if (timeDisplay.disabled || !video.src) return;
 
@@ -1005,6 +1062,7 @@ document.addEventListener("DOMContentLoaded", () => {
   videoContainer.addEventListener("dragleave", onDragLeave);
   videoContainer.addEventListener("drop", onDrop);
 
+  // Dropping the video outside its container unloads it and resets media UI.
   video.addEventListener("dragend", (e) => {
     const rect = videoContainer.getBoundingClientRect();
     if (
@@ -1038,6 +1096,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  // Timer toolbar button shows or hides the draggable current-time field.
   copyBtn.addEventListener("click", () => {
     const td = document.getElementById("time-display");
 
@@ -1053,6 +1112,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   window.addEventListener("resize", updateOutputBounds);
 
+  // Show which segment of the full timeline is currently visible in the waveform.
   function updateZoomHighlight() {
     if (!audioBuffer || isNaN(video.duration)) {
       document.getElementById("zoomHighlight").style.width = "0";
@@ -1080,6 +1140,7 @@ document.addEventListener("DOMContentLoaded", () => {
     highlight.style.width = `${widthPct}%`;
   }
 
+  // Canvas dimensions must match CSS dimensions before drawing.
   function resizeWaveformCanvas() {
     const rect = waveformContainer.getBoundingClientRect();
     waveformCanvas.width = rect.width;
@@ -1087,6 +1148,7 @@ document.addEventListener("DOMContentLoaded", () => {
     drawWaveform();
   }
 
+  // Keep the timeline canvas crisp after layout changes.
   function resizeTimelineCanvas() {
     const rect = timelineContainer.getBoundingClientRect();
     timelineCanvas.width = rect.width;
@@ -1094,6 +1156,7 @@ document.addEventListener("DOMContentLoaded", () => {
     drawTimeline();
   }
 
+  // Timeline drawing currently clears the canvas; the playhead is a DOM element.
   function drawTimeline() {
     const width = timelineCanvas.width;
     const height = timelineCanvas.height;
@@ -1113,6 +1176,7 @@ document.addEventListener("DOMContentLoaded", () => {
   let controlTimeout;
   const player = document.getElementById("player-container");
 
+  // Entering/exiting fullscreen changes which controls are visible and scaled.
   function onFullScreenToggle() {
     const isFS =
       document.fullscreenElement === player ||
@@ -1138,11 +1202,14 @@ document.addEventListener("DOMContentLoaded", () => {
     updateSubtitleScale
   );
 
+  // Owns the subtitle editing form and turns visible inputs into SAMI output.
   class SubtitleGenerator {
     constructor() {
+      // Output textarea and title input are shared across every language.
       this.output = document.getElementById("output");
       this.titleText = document.getElementById("titleText");
 
+      // Keep an ordered list of section elements for each SAMI class.
       this.sections = LANGUAGE_CODES.reduce((acc, code) => {
         acc[code] = [];
         return acc;
@@ -1161,10 +1228,12 @@ document.addEventListener("DOMContentLoaded", () => {
       this.setupTextInputListeners();
     }
 
+    // Recalculate which language containers should be visible.
     handleLanguageChange() {
       this.toggleLanguageSections();
     }
 
+    // Add a new subtitle block, optionally directly after an existing block.
     addInputSection(langClass, referenceSectionWrapper = null) {
       document.getElementById("output").style.display = "none";
 
@@ -1197,10 +1266,12 @@ document.addEventListener("DOMContentLoaded", () => {
       updateBookmarks();
     }
 
+    // Resolve the DOM container that belongs to a SAMI class code.
     getContainerByLangClass(c) {
       return document.getElementById(LANG[c].container);
     }
 
+    // Mirror the DOM insertion in the internal ordered section list.
     addSectionToList(c, s, r) {
       let arr;
 
@@ -1219,6 +1290,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
 
+    // Build one visual subtitle section: number, timed lines, end time, controls.
     createInputSection(c) {
       const wrapper = document.createElement("div");
       wrapper.className = "section-wrapper";
@@ -1253,6 +1325,7 @@ document.addEventListener("DOMContentLoaded", () => {
       return wrapper;
     }
 
+    // Insert one start-time/text row before the end-time row.
     addInputGroup(sec, ref = null) {
       const grp = this.createInputGroup();
       if (ref) sec.insertBefore(grp, ref.nextSibling);
@@ -1260,6 +1333,7 @@ document.addEventListener("DOMContentLoaded", () => {
       this.adjustInputWidth(grp.querySelector(".text"));
     }
 
+    // Create a single editable subtitle row with remove/add controls.
     createInputGroup() {
       const g = document.createElement("div");
       g.className = "input-group";
@@ -1288,6 +1362,7 @@ document.addEventListener("DOMContentLoaded", () => {
       return g;
     }
 
+    // End time closes the section by emitting a blank SAMI cue.
     createLastTimeInputGroup() {
       const l = document.createElement("div");
       l.className = "last-time-input";
@@ -1295,6 +1370,7 @@ document.addEventListener("DOMContentLoaded", () => {
       return l;
     }
 
+    // Add-section control shown below each subtitle block.
     createSectionControls(c, w) {
       const d = document.createElement("div");
       d.className = "section-controls";
@@ -1318,6 +1394,7 @@ document.addEventListener("DOMContentLoaded", () => {
       return d;
     }
 
+    // Remove a row; if it was the last row, remove the whole section.
     removeInputGroup(g) {
       const content = g.closest(".section-content");
       content.removeChild(g);
@@ -1326,6 +1403,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
 
+    // Remove a section from both the DOM and its internal ordering list.
     removeInputSection(s) {
       const wrapper = s.closest(".section-wrapper");
       const container = wrapper.closest(".section-container");
@@ -1347,6 +1425,7 @@ document.addEventListener("DOMContentLoaded", () => {
       this.updateSectionNumbers(code);
     }
 
+    // Re-number visible sections after insertions or deletions.
     updateSectionNumbers(c) {
       this.getContainerByLangClass(c)
         .querySelectorAll(".input-section")
@@ -1356,6 +1435,7 @@ document.addEventListener("DOMContentLoaded", () => {
         );
     }
 
+    // Accept mm:ss.mmm-style separators and normalize to milliseconds.
     convertTimeToMilliseconds(t) {
       if (!t) return null;
       const m = t
@@ -1368,10 +1448,13 @@ document.addEventListener("DOMContentLoaded", () => {
       return minutes * 60000 + seconds * 1000 + milli;
     }
 
+    // Lightweight validation before attempting full time conversion.
     validateTimeFormat(t) {
       return /^[0-9]+[.:,;][0-5]?[0-9][.:,;][0-9]{1,4}$/.test(t.trim());
     }
 
+    // Validate visible fields, generate SAMI markup, update preview cues,
+    // and enable download once the output is fresh.
     generateSubtitles(skipValidation = false) {
       if (!skipValidation) {
         const invalid = [];
@@ -1490,6 +1573,7 @@ ${styleLines}
       }
     }
 
+    // Convert one editor section into its sequence of SAMI <SYNC> cues.
     generateSubtitleForSection(s) {
       let out = "";
       const content = s.querySelector(".section-content");
@@ -1539,6 +1623,7 @@ ${styleLines}
       return out;
     }
 
+    // Download the generated SAMI text as a .smi file named after the title.
     downloadSAMIFile() {
       const a = Object.assign(document.createElement("a"), {
         href: URL.createObjectURL(
@@ -1550,6 +1635,7 @@ ${styleLines}
       URL.revokeObjectURL(a.href);
     }
 
+    // Copy section timing structure from one language into another language.
     duplicateSectionsToTarget(src, dest) {
       const srcContainer = this.getContainerByLangClass(src);
       const srcSecs = Array.from(
@@ -1605,6 +1691,7 @@ ${styleLines}
       updateBookmarks();
     }
 
+    // Show active language containers and clear inactive language contents.
     toggleLanguageSections() {
       LANGUAGES.forEach(({ key }) => {
         const code = codeMap[key];
@@ -1635,6 +1722,7 @@ ${styleLines}
         });
     }
 
+    // Remove all generated editor sections for a language.
     resetSections(langKey) {
       const code = Object.keys(LANG).find((k) => LANG[k].key === langKey);
       if (!code) return;
@@ -1644,10 +1732,12 @@ ${styleLines}
       }
     }
 
+    // Return the language key associated with a SAMI class code.
     getLangValue(c) {
       return LANG[c].key;
     }
 
+    // Shared input listeners keep sizing, generated output, and validation in sync.
     setupTextInputListeners() {
       document.body.addEventListener("input", (e) => {
         if (e.target.classList.contains("text"))
@@ -1724,6 +1814,7 @@ ${styleLines}
         });
     }
 
+    // Match every text input in a section to the widest line in that section.
     adjustInputWidth(changed) {
       const sec = changed.closest(".input-section");
       const texts = sec.querySelectorAll(".text");
@@ -1742,14 +1833,17 @@ ${styleLines}
       texts.forEach((t) => (t.style.width = `${max}px`));
     }
 
+    // Grow the output textarea to fit generated SAMI content.
     adjustOutputHeight() {
       this.output.style.height = "auto";
       this.output.style.height = this.output.scrollHeight + "px";
     }
   }
 
+  // Create the editor controller after all static DOM references are available.
   const subtitleGenerator = new SubtitleGenerator();
 
+  // Manual edits to generated output should keep the textarea height usable.
   document
     .getElementById("output")
     .addEventListener("input", function () {
@@ -1757,8 +1851,10 @@ ${styleLines}
       this.style.height = this.scrollHeight + "px";
     });
 
+  // Language buttons cycle through hidden, active, and ready/editable states.
   const langButtons = document.querySelectorAll(".lang-btn");
 
+  // Toggle whether a language's section exposes detailed line controls.
   function setSectionEditability(lang, editable) {
     const code = codeMap[lang];
     document
@@ -1768,10 +1864,13 @@ ${styleLines}
       );
   }
 
+  // Helper for event targets inside a language button.
   function closestLangBtn(el) {
     return el ? el.closest(".lang-btn") : null;
   }
 
+  // Wire each visible language button: activate, mark ready, open color picker,
+  // remove language, or drag timing structure to another active language.
   langButtons.forEach((btn) => {
     btn.addEventListener(
       "pointerdown",
@@ -1882,6 +1981,7 @@ ${styleLines}
     });
   });
 
+  // On first load, only initially active languages are visible.
   Object.keys(codeMap).forEach((lang) => {
     const toggleBtn = document.querySelector(
       `.lang-btn[data-target="${lang}"]`
@@ -1894,6 +1994,7 @@ ${styleLines}
       .forEach((el) => (el.style.display = isActive ? "flex" : "none"));
   });
 
+  // Language picker modal is populated from the rendered language buttons.
   const modal = document.getElementById("languageModal");
   const modalScroll = modal.querySelector(".lang-modal-scroll");
 
@@ -1926,6 +2027,7 @@ ${styleLines}
     });
   });
 
+  // Hide the add button once every available language is already active.
   function updateAddLanguageButton() {
     const totalLangs = selectBtns.length;
     const activeLangs =
@@ -1937,6 +2039,7 @@ ${styleLines}
 
   updateAddLanguageButton();
 
+  // Open/close the language picker and hide already-active choices.
   addLangBtn.addEventListener("click", function () {
     this.classList.toggle("active");
 
@@ -2016,6 +2119,7 @@ ${styleLines}
       .forEach((btn) => btn.classList.remove("covered"));
   });
 
+  // The toggle backdrop prevents clicks on covered language buttons behind the modal.
   const toggleBackdrop = (() => {
     const el = document.createElement("div");
     el.id = "toggleBackdrop";
@@ -2029,6 +2133,7 @@ ${styleLines}
     closeLangModal();
   });
 
+  // Size the backdrop to cover active language buttons while the picker is open.
   function updateToggleBackdrop() {
     const toggle = document.querySelector(".language-toggle");
     const activeBtns = toggle.querySelectorAll(".lang-btn.active");
@@ -2062,6 +2167,7 @@ ${styleLines}
     }
   });
 
+  // Selecting a language activates its toggle and inserts its editor container.
   selectBtns.forEach((btn) => {
     btn.addEventListener("click", () => {
       const lang = btn.dataset.target;
@@ -2094,6 +2200,7 @@ ${styleLines}
     });
   });
 
+  // Toolbar fullscreen button wraps browser-specific fullscreen APIs.
   fullscreenBtn.addEventListener("click", () => {
     const player = document.getElementById("player-container");
     if (!document.fullscreenElement) {
@@ -2111,12 +2218,14 @@ ${styleLines}
     }
   });
 
+  // Toolbar caption button toggles the live SAMI overlay.
   captionBtn.addEventListener("click", () => {
     captionsEnabled = !captionsEnabled;
     samiOverlay.style.display = captionsEnabled ? "block" : "none";
     captionBtn.classList.toggle("active", captionsEnabled);
   });
 
+  // Draggable divider state for resizing the media panel.
   const videoPanel = document.querySelector(".video-panel");
   const mainContent = document.querySelector(".main-content");
   let isDragging = false;
@@ -2137,6 +2246,7 @@ ${styleLines}
     isDragging = false;
   });
 
+  // Resize the media panel and recalculate every dependent overlay/canvas.
   document.addEventListener("mousemove", (e) => {
     if (!isDragging) return;
 
@@ -2239,6 +2349,7 @@ ${styleLines}
     }
   });
 
+  // Visual feedback while dragging timing structure between languages.
   langButtons.forEach((btn) => {
     btn.addEventListener("dragover", (e) => e.preventDefault());
 
@@ -2262,10 +2373,12 @@ ${styleLines}
     );
   });
 
+  // Current source and target state for language drag/drop.
   let draggingLang = null;
   let dragSourceBtn = null;
   let currentTarget = null;
 
+  // Clear validation highlights as soon as the user interacts with a field.
   document.addEventListener(
     "pointerdown",
     (e) => clearInputError(e.target),
@@ -2290,6 +2403,7 @@ ${styleLines}
 
   subtitleGenerator.toggleLanguageSections();
 
+  // Keep editor section order aligned with the visible language button order.
   function reorderSectionContainers() {
     const parent = document.querySelector(".main-content .container");
     const outputEl = document.getElementById("output");
@@ -2309,6 +2423,7 @@ ${styleLines}
 
   const scrollEl = document.querySelector(".lang-modal-scroll");
 
+  // Delegated click handler also covers cloned items used for infinite scroll.
   scrollEl.addEventListener("click", (e) => {
     const btn = e.target.closest(".lang-select-btn");
     if (!btn || btn.disabled) return;
@@ -2341,6 +2456,7 @@ ${styleLines}
       .forEach((b) => b.classList.remove("covered"));
   });
 
+  // Clone language choices before and after the list to fake circular scrolling.
   const items = Array.from(scrollEl.querySelectorAll(".lang-select-btn"));
   items.forEach((item) => scrollEl.appendChild(item.cloneNode(true)));
   items
@@ -2350,11 +2466,13 @@ ${styleLines}
       scrollEl.insertBefore(item.cloneNode(true), scrollEl.firstChild)
     );
 
+  // Start the circular scroller in the middle copy of the list.
   function resetScroll() {
     scrollEl.scrollTop = scrollEl.scrollHeight / 3;
   }
   resetScroll();
 
+  // Jump scroll position between cloned thirds to keep the loop seamless.
   scrollEl.addEventListener("scroll", () => {
     const third = scrollEl.scrollHeight / 3;
     if (scrollEl.scrollTop < 50) {
@@ -2364,6 +2482,7 @@ ${styleLines}
     }
   });
 
+  // Wheel events over the modal drive the custom scroll speed.
   document.addEventListener(
     "wheel",
     function (e) {
@@ -2382,6 +2501,7 @@ ${styleLines}
     { passive: false }
   );
 
+  // Restore the normal language bar state after closing the picker.
   function closeLangModal() {
     modal.classList.add("hidden");
     modalBackdrop.classList.add("hidden");
@@ -2400,6 +2520,7 @@ ${styleLines}
     if (scrollEl) scrollEl.style.display = "none";
   }
 
+  // Lazy-load Pickr and expose a small helper used by ready language buttons.
   (function () {
     const overlay = document.createElement("div");
     Object.assign(overlay.style, {
@@ -2423,6 +2544,7 @@ ${styleLines}
     document.head.appendChild(script);
 
     let pickr;
+    // Configure the color picker for a simple hex-like text color workflow.
     function initPickr() {
       pickr = Pickr.create({
         el: "#color-btn",
@@ -2445,6 +2567,7 @@ ${styleLines}
         },
       });
 
+      // Ready buttons show the selected highlight color as a left-side stripe.
       function updateReadyGradient(color) {
         document.querySelectorAll(".lang-btn.ready").forEach((btn) => {
           btn.style.backgroundImage = `linear-gradient(to right, ${color} 20%, transparent 20%)`;
@@ -2538,9 +2661,11 @@ ${styleLines}
     };
   })();
 
+  // Scroll bookmarks show where each visible language section begins.
   const bmContainer = document.getElementById("container");
   const scrollContainer = document.querySelector(".main-content");
 
+  // Rebuild bookmark dots from the current scroll height and visible sections.
   function updateBookmarks() {
     bmContainer.innerHTML = "";
     const totalH = scrollContainer.scrollHeight;
@@ -2597,6 +2722,7 @@ ${styleLines}
     });
   });
 
+  // Ensure language visibility changes also refresh the bookmark rail.
   subtitleGenerator.toggleLanguageSections = (function (orig) {
     return function () {
       orig.apply(this, arguments);
@@ -2604,6 +2730,7 @@ ${styleLines}
     };
   })(subtitleGenerator.toggleLanguageSections);
 
+  // Draw the currently visible audio segment as a simple amplitude waveform.
   function drawWaveform() {
     if (!audioBuffer) {
       canvasCtx.clearRect(
@@ -2647,6 +2774,7 @@ ${styleLines}
     }
   }
 
+  // Animate waveform panning and DOM playhead position while media plays.
   function updatePlayhead() {
     if (video.paused || isSeeking) {
       cancelAnimationFrame(playheadReqId);
@@ -2716,8 +2844,10 @@ ${styleLines}
     playheadReqId = requestAnimationFrame(updatePlayhead);
   }
 
+  // Short playback blips let the browser refresh video frames during precise seeking.
   let singleFrameTimeout;
 
+  // Clicking the waveform seeks immediately and previews a tiny frame slice.
   waveformCanvas.addEventListener("mousedown", (e) => {
     if (!audioBuffer) return;
     isSeeking = true;
@@ -2733,6 +2863,7 @@ ${styleLines}
     }, 10);
   });
 
+  // Dragging outside the waveform auto-scrolls the zoomed segment.
   window.addEventListener("mousemove", (e) => {
     if (!isSeeking) return;
 
@@ -2795,6 +2926,7 @@ ${styleLines}
     }
   });
 
+  // Translate a waveform x-coordinate into sample offset and media currentTime.
   function seekOnCanvas(event) {
     const rect = waveformCanvas.getBoundingClientRect();
     const totalSamples = audioBuffer.length;
@@ -2837,6 +2969,7 @@ ${styleLines}
     updateTimeDisplay();
   }
 
+  // Mouse wheel zooms the waveform around the current playhead position.
   waveformCanvas.addEventListener("wheel", (e) => {
     if (!audioBuffer) return;
     e.preventDefault();
@@ -2873,6 +3006,7 @@ ${styleLines}
     }
   });
 
+  // Time fields can be dragged between inputs to quickly copy exact timestamps.
   document.body.addEventListener("dragstart", (e) => {
     if (!e.target.matches(".time, .last-time, #time-display")) return;
     e.dataTransfer.setData("text/plain", e.target.value);

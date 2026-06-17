@@ -5,11 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SUBPIK</title>
 
+    <!-- External icon font used by the toolbar buttons. -->
     <link
       href="https://fonts.googleapis.com/icon?family=Material+Icons"
       rel="stylesheet"
     />
 
+    <!-- Subtitle preview fonts loaded from Google Fonts. -->
     <link
       href="https://fonts.googleapis.com/css2?
       family=Nanum+Gothic:wght@700;900
@@ -19,12 +21,15 @@
       rel="stylesheet"
     />
 
+    <!-- Pickr supplies the color picker used for highlighted subtitle text. -->
     <link
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@simonwep/pickr@1.8.2/dist/themes/classic.min.css"
     />
+    <!-- Local stylesheet for all layout, controls, and animation states. -->
     <link rel="stylesheet" href="styles.css" />
 
+    <!-- Web component runtime for the animated logo in the upper-left corner. -->
     <script
       type="module"
       src="https://unpkg.com/@lottiefiles/dotlottie-wc@latest/dist/dotlottie-wc.js"
@@ -32,6 +37,7 @@
 
   </head>
   <body>
+    <!-- Decorative app logo. It is fixed and intentionally ignores pointer events. -->
     <dotlottie-wc
       src="https://tistory1.daumcdn.net/tistory/7307299/skin/images/logo2.lottie"
       autoplay
@@ -47,6 +53,7 @@
       "
     ></dotlottie-wc>
 
+    <!-- Left toolbar: these buttons are enabled as media/subtitles become available. -->
     <div id="leftBar">
       <button id="fullscreen-btn" disabled>
         <span class="material-icons">fullscreen</span>
@@ -65,21 +72,27 @@
       </button>
     </div>
 
+    <!-- Scroll bookmark rail for long subtitle forms. -->
     <aside id="sidebar">
       <div id="handle"></div>
       <div id="container"></div>
     </aside>
 
+    <!-- Shared backdrop for modal-style interactions. -->
     <div id="modalBackdrop" class="modal-backdrop hidden"></div>
 
+    <!-- Media panel: video/audio loading, subtitle overlay, timeline, and waveform. -->
     <div class="video-panel">
       <div id="player-container">
+        <!-- Click this area to choose a media file, or drop a media file onto it. -->
         <div id="video-container">
           <video id="video" preload="metadata"></video>
           <div id="video-placeholder">파일 추가</div>
 
+          <!-- Live SAMI preview text is injected here during playback. -->
           <div id="samiOverlay"></div>
 
+          <!-- Current playback time; also works as a draggable time source. -->
           <input
             id="time-display"
             class="hidden"
@@ -90,6 +103,7 @@
           />
         </div>
 
+        <!-- Thin full-duration timeline and zoom window indicator. -->
         <div
           id="timelineContainer"
           style="position: relative; width: 100%; height: 28px"
@@ -99,11 +113,13 @@
           <div id="zoomHighlight"></div>
         </div>
 
+        <!-- Audio waveform for precise seeking and zooming. -->
         <div id="waveformContainer">
           <canvas id="waveformCanvas"></canvas>
           <div id="waveformPlayhead"></div>
         </div>
       </div>
+      <!-- Hidden file picker triggered by clicking the media panel. -->
       <input
         type="file"
         id="fileInput"
@@ -111,8 +127,10 @@
         style="display: none"
       />
     </div>
+    <!-- Draggable divider between media playback and subtitle editing. -->
     <div id="divider"></div>
 
+    <!-- Generate/output toggle button with a custom animated icon. -->
     <div class="click-anim-container" data-state="0">
       <div class="click-anim-inner">
         <div class="arrow"></div>
@@ -121,8 +139,10 @@
       </div>
     </div>
 
+    <!-- Subtitle editor area. Language sections are created dynamically by script.js. -->
     <div class="main-content">
       <div class="container">
+        <!-- Active language buttons live here; the plus button opens the language picker. -->
         <div class="language-toggle">
           <button id="addLanguageButton" class="lang-add-btn icon">
             <div class="bar vertical"></div>
@@ -130,6 +150,7 @@
             <div class="bar horizontal right"></div>
           </button>
 
+          <!-- Language picker modal; script.js fills the scroll list. -->
           <div id="languageModal" class="lang-modal hidden">
             <div class="lang-modal-content">
               <div class="lang-modal-scroll"></div>
@@ -137,18 +158,23 @@
           </div>
         </div>
 
+        <!-- File title used as both SAMI title and default download filename. -->
         <div id="titleInput">
           <input type="text" id="titleText" placeholder="Title" />
         </div>
 
+        <!-- Per-language subtitle input containers are inserted here at startup. -->
         <div id="sectionContainers"></div>
 
+        <!-- Generated SAMI text appears here before downloading. -->
         <textarea id="output"></textarea>
       </div>
     </div>
 
+    <!-- Invisible Pickr anchor. The color picker library attaches to this element. -->
     <button id="color-btn" style="display: none"></button>
 
+    <!-- Validation popup shown when required subtitle fields are missing or malformed. -->
     <div id="invalidInputOverlay" class="center-popup-overlay hidden"></div>
     <div id="invalidInputPopup" class="center-popup hidden">
       <button id="invalidInputClose" class="center-popup-close">&times;</button>
@@ -160,6 +186,7 @@
         ></ul>
       </div>
     </div>
+    <!-- Main application behavior. -->
     <script src="script.js"></script>
   </body>
 </html>

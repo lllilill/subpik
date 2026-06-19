@@ -5,13 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SUBPIK</title>
 
-    <!-- External icon font used by the toolbar buttons. -->
+    <!-- 툴바 버튼에 쓰는 외부 아이콘 폰트입니다. -->
     <link
       href="https://fonts.googleapis.com/icon?family=Material+Icons"
       rel="stylesheet"
     />
 
-    <!-- Subtitle preview fonts loaded from Google Fonts. -->
+    <!-- 자막 미리보기에 사용할 글꼴을 Google Fonts에서 불러옵니다. -->
     <link
       href="https://fonts.googleapis.com/css2?
       family=Nanum+Gothic:wght@700;900
@@ -21,15 +21,15 @@
       rel="stylesheet"
     />
 
-    <!-- Pickr supplies the color picker used for highlighted subtitle text. -->
+    <!-- Pickr는 강조 자막 색상을 고르는 색상 선택기입니다. -->
     <link
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@simonwep/pickr@1.8.2/dist/themes/classic.min.css"
     />
-    <!-- Local stylesheet for all layout, controls, and animation states. -->
+    <!-- 레이아웃, 컨트롤, 애니메이션 상태를 담당하는 로컬 스타일시트입니다. -->
     <link rel="stylesheet" href="styles.css" />
 
-    <!-- Web component runtime for the animated logo in the upper-left corner. -->
+    <!-- 왼쪽 위 애니메이션 로고를 표시하기 위한 웹 컴포넌트 런타임입니다. -->
     <script
       type="module"
       src="https://unpkg.com/@lottiefiles/dotlottie-wc@latest/dist/dotlottie-wc.js"
@@ -37,7 +37,7 @@
 
   </head>
   <body>
-    <!-- Decorative app logo. It is fixed and intentionally ignores pointer events. -->
+    <!-- 장식용 앱 로고입니다. 화면에 고정되고 클릭 이벤트를 받지 않습니다. -->
     <dotlottie-wc
       src="https://tistory1.daumcdn.net/tistory/7307299/skin/images/logo2.lottie"
       autoplay
@@ -53,7 +53,7 @@
       "
     ></dotlottie-wc>
 
-    <!-- Left toolbar: these buttons are enabled as media/subtitles become available. -->
+    <!-- 왼쪽 툴바입니다. 미디어나 자막이 준비되면 버튼이 활성화됩니다. -->
     <div id="leftBar">
       <button id="fullscreen-btn" disabled>
         <span class="material-icons">fullscreen</span>
@@ -72,27 +72,27 @@
       </button>
     </div>
 
-    <!-- Scroll bookmark rail for long subtitle forms. -->
+    <!-- 긴 자막 입력 폼에서 위치를 빠르게 찾기 위한 스크롤 북마크 영역입니다. -->
     <aside id="sidebar">
       <div id="handle"></div>
       <div id="container"></div>
     </aside>
 
-    <!-- Shared backdrop for modal-style interactions. -->
+    <!-- 모달 형태의 상호작용에서 공통으로 쓰는 배경 레이어입니다. -->
     <div id="modalBackdrop" class="modal-backdrop hidden"></div>
 
-    <!-- Media panel: video/audio loading, subtitle overlay, timeline, and waveform. -->
+    <!-- 미디어 패널입니다. 영상/오디오 로드, 자막 오버레이, 타임라인, 파형을 담습니다. -->
     <div class="video-panel">
       <div id="player-container">
-        <!-- Click this area to choose a media file, or drop a media file onto it. -->
+        <!-- 이 영역을 클릭해 미디어 파일을 고르거나 파일을 끌어다 놓습니다. -->
         <div id="video-container">
           <video id="video" preload="metadata"></video>
           <div id="video-placeholder">파일 추가</div>
 
-          <!-- Live SAMI preview text is injected here during playback. -->
+          <!-- 재생 중 SAMI 자막 미리보기 텍스트가 이곳에 삽입됩니다. -->
           <div id="samiOverlay"></div>
 
-          <!-- Current playback time; also works as a draggable time source. -->
+          <!-- 현재 재생 시간입니다. 다른 시간 입력칸으로 끌어다 놓을 수도 있습니다. -->
           <input
             id="time-display"
             class="hidden"
@@ -103,7 +103,7 @@
           />
         </div>
 
-        <!-- Thin full-duration timeline and zoom window indicator. -->
+        <!-- 전체 재생 구간을 보여주는 얇은 타임라인과 줌 구간 표시입니다. -->
         <div
           id="timelineContainer"
           style="position: relative; width: 100%; height: 28px"
@@ -113,13 +113,13 @@
           <div id="zoomHighlight"></div>
         </div>
 
-        <!-- Audio waveform for precise seeking and zooming. -->
+        <!-- 정밀 탐색과 줌을 위한 오디오 파형 영역입니다. -->
         <div id="waveformContainer">
           <canvas id="waveformCanvas"></canvas>
           <div id="waveformPlayhead"></div>
         </div>
       </div>
-      <!-- Hidden file picker triggered by clicking the media panel. -->
+      <!-- 미디어 패널을 클릭했을 때 열리는 숨겨진 파일 선택기입니다. -->
       <input
         type="file"
         id="fileInput"
@@ -127,10 +127,10 @@
         style="display: none"
       />
     </div>
-    <!-- Draggable divider between media playback and subtitle editing. -->
+    <!-- 미디어 재생 영역과 자막 편집 영역 사이의 드래그 가능한 분할선입니다. -->
     <div id="divider"></div>
 
-    <!-- Generate/output toggle button with a custom animated icon. -->
+    <!-- 커스텀 애니메이션 아이콘을 가진 생성/출력 전환 버튼입니다. -->
     <div class="click-anim-container" data-state="0">
       <div class="click-anim-inner">
         <div class="arrow"></div>
@@ -139,10 +139,10 @@
       </div>
     </div>
 
-    <!-- Subtitle editor area. Language sections are created dynamically by script.js. -->
+    <!-- 자막 편집 영역입니다. 언어별 섹션은 script.js에서 동적으로 생성됩니다. -->
     <div class="main-content">
       <div class="container">
-        <!-- Active language buttons live here; the plus button opens the language picker. -->
+        <!-- 활성 언어 버튼이 배치되는 곳입니다. 더하기 버튼은 언어 선택창을 엽니다. -->
         <div class="language-toggle">
           <button id="addLanguageButton" class="lang-add-btn icon">
             <div class="bar vertical"></div>
@@ -150,7 +150,7 @@
             <div class="bar horizontal right"></div>
           </button>
 
-          <!-- Language picker modal; script.js fills the scroll list. -->
+          <!-- 언어 선택 모달입니다. 스크롤 목록은 script.js가 채웁니다. -->
           <div id="languageModal" class="lang-modal hidden">
             <div class="lang-modal-content">
               <div class="lang-modal-scroll"></div>
@@ -158,23 +158,23 @@
           </div>
         </div>
 
-        <!-- File title used as both SAMI title and default download filename. -->
+        <!-- SAMI 제목과 기본 다운로드 파일명으로 쓰는 제목 입력칸입니다. -->
         <div id="titleInput">
           <input type="text" id="titleText" placeholder="Title" />
         </div>
 
-        <!-- Per-language subtitle input containers are inserted here at startup. -->
+        <!-- 시작 시 언어별 자막 입력 컨테이너가 이곳에 삽입됩니다. -->
         <div id="sectionContainers"></div>
 
-        <!-- Generated SAMI text appears here before downloading. -->
+        <!-- 다운로드 전에 생성된 SAMI 텍스트가 이곳에 표시됩니다. -->
         <textarea id="output"></textarea>
       </div>
     </div>
 
-    <!-- Invisible Pickr anchor. The color picker library attaches to this element. -->
+    <!-- 보이지 않는 Pickr 기준 요소입니다. 색상 선택기 라이브러리가 이 요소에 연결됩니다. -->
     <button id="color-btn" style="display: none"></button>
 
-    <!-- Validation popup shown when required subtitle fields are missing or malformed. -->
+    <!-- 필수 자막 입력값이 비었거나 형식이 틀렸을 때 표시되는 검증 팝업입니다. -->
     <div id="invalidInputOverlay" class="center-popup-overlay hidden"></div>
     <div id="invalidInputPopup" class="center-popup hidden">
       <button id="invalidInputClose" class="center-popup-close">&times;</button>
@@ -186,7 +186,7 @@
         ></ul>
       </div>
     </div>
-    <!-- Main application behavior. -->
+    <!-- 앱의 주요 동작을 담당하는 스크립트입니다. -->
     <script src="script.js"></script>
   </body>
 </html>

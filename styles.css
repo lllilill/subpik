@@ -1,7 +1,7 @@
-/* Global app font used across the compact subtitle editing interface. */
+/* 작고 밀도 있는 자막 편집 화면 전체에서 사용하는 기본 앱 글꼴입니다. */
 @import url("https://fonts.googleapis.com/css2?family=Nunito:wght@700;900&display=swap");
 
-/* Wrappers keep each generated subtitle section centered in the editor column. */
+/* 각 생성 자막 섹션을 편집 열 중앙에 배치하는 래퍼입니다. */
 .section-wrapper {
   width: 100%;
   display: flex;
@@ -9,19 +9,19 @@
   align-items: center;
 }
 
-/* The UI uses a heavy display style by default; inputs are relaxed below. */
+/* UI는 기본적으로 두꺼운 표시 스타일을 쓰고, 입력칸은 아래에서 조금 가볍게 조정합니다. */
 * {
   font-family: "Nunito", sans-serif !important;
   font-weight: 900 !important;
 }
 
-/* Text entry needs slightly lighter weight for readability while typing. */
+/* 입력 중 가독성을 위해 텍스트 입력 요소는 조금 더 가벼운 굵기를 사용합니다. */
 input,
 textarea {
   font-weight: 700 !important;
 }
 
-/* Root page layout: fixed-height two-pane editor with horizontal sections. */
+/* 루트 페이지 레이아웃입니다. 고정 높이의 좌우 2분할 편집 화면입니다. */
 body {
   background: #fff;
   display: flex;
@@ -30,7 +30,7 @@ body {
   margin: 0;
 }
 
-/* Main editor content width guard. */
+/* 메인 편집 콘텐츠의 최대 너비를 제한합니다. */
 .container {
   max-width: 1200px;
   width: 100%;
@@ -38,7 +38,7 @@ body {
   text-align: center;
 }
 
-/* Legacy fixed title/logo styles retained for older title markup. */
+/* 이전 제목 마크업을 위해 남겨둔 고정 제목/로고 스타일입니다. */
 #titleHeading {
   position: fixed;
   top: -10px;
@@ -57,7 +57,7 @@ body {
   color: #000000;
 }
 
-/* Base input styling shared by title, timestamps, and subtitle text fields. */
+/* 제목, 타임스탬프, 자막 텍스트 입력칸이 공유하는 기본 입력 스타일입니다. */
 input {
   width: 100px;
   height: 25px;
@@ -65,7 +65,7 @@ input {
   border-radius: 3px;
 }
 
-/* Title field sits above the generated language sections. */
+/* 제목 입력칸은 생성된 언어 섹션 위에 배치됩니다. */
 #titleInput {
   width: auto;
   min-width: 150px;
@@ -79,7 +79,7 @@ input {
   width: auto;
 }
 
-/* A language container holds all subtitle sections for one language. */
+/* 언어 컨테이너는 한 언어의 모든 자막 섹션을 담습니다. */
 .section-container {
   width: 100%;
   box-sizing: border-box;
@@ -89,7 +89,7 @@ input {
   align-items: center;
 }
 
-/* Colored subtitle card generated for each timed caption block. */
+/* 시간 지정 자막 블록마다 생성되는 색상 자막 카드입니다. */
 .input-section {
   display: flex;
   flex-direction: column;
@@ -104,7 +104,7 @@ input {
   background: var(--lang-color);
 }
 
-/* Section number badge centered at the top of a subtitle block. */
+/* 자막 블록 상단 중앙에 표시되는 섹션 번호 배지입니다. */
 .section-number {
   color: #fff;
   position: absolute;
@@ -115,14 +115,14 @@ input {
   font-size: 20px;
 }
 
-/* Rows stack vertically inside each subtitle section. */
+/* 각 자막 섹션 안에서 행을 세로로 쌓습니다. */
 .section-content {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
 }
 
-/* Start-time/text rows and the final end-time row share horizontal alignment. */
+/* 시작 시간/텍스트 행과 마지막 종료 시간 행은 같은 가로 정렬을 공유합니다. */
 .input-group,
 .last-time-input {
   display: flex;
@@ -153,13 +153,13 @@ input {
   width: 100px;
 }
 
-/* View-only sections hide per-line add controls until their language is ready. */
+/* 보기 전용 섹션은 해당 언어가 ready 상태가 될 때까지 줄별 추가 컨트롤을 숨깁니다. */
 .section-view-only .add-btn {
   opacity: 0;
   pointer-events: none;
 }
 
-/* Base button geometry before specialized icon and language styles override it. */
+/* 아이콘/언어 전용 스타일이 덮어쓰기 전의 기본 버튼 형태입니다. */
 button {
   width: 110px;
   height: 40px;
@@ -173,14 +173,14 @@ button {
   transition: transform 0.15s;
 }
 
-/* Inline add/remove controls inherit the section color area behind them. */
+/* 줄 안의 추가/삭제 컨트롤은 뒤쪽 섹션 색상 영역 위에 놓입니다. */
 .input-section .add-btn,
 .input-section .remove-btn {
   background: none;
   color: #fff;
 }
 
-/* Add-section buttons live below each section and at the top of containers. */
+/* 섹션 추가 버튼은 각 섹션 아래와 컨테이너 상단에 위치합니다. */
 .add-section-btn {
   position: relative;
   margin-top: 10px;
@@ -192,7 +192,7 @@ button {
   color: #fff;
 }
 
-/* Small hover lift gives controls a tactile feel. */
+/* 살짝 커지는 hover 효과로 컨트롤에 눌리는 느낌을 줍니다. */
 button:hover:not(.disabled) {
   transform: scale(1.08);
 }
@@ -206,7 +206,7 @@ button:disabled:hover {
   transform: none !important;
 }
 
-/* Plus/minus row controls are custom-drawn with pseudo-elements. */
+/* 행 추가/삭제의 플러스/마이너스 컨트롤은 의사 요소로 직접 그립니다. */
 .add-btn,
 .remove-btn {
   display: inline-flex;
@@ -225,7 +225,7 @@ button:disabled:hover {
   position: relative;
 }
 
-/* Add row button animates in only when the section is editable. */
+/* 행 추가 버튼은 섹션이 편집 가능할 때만 애니메이션으로 나타납니다. */
 .add-btn {
   position: absolute;
   right: 0;
@@ -235,14 +235,14 @@ button:disabled:hover {
   pointer-events: none;
 }
 
-/* Remove row button stays visible so sections can be pruned quickly. */
+/* 행 삭제 버튼은 섹션을 빠르게 정리할 수 있도록 계속 보입니다. */
 .remove-btn {
   position: relative;
   margin-left: -5px;
   margin-right: 7px;
 }
 
-/* Draw plus/minus symbols without image assets. */
+/* 이미지 파일 없이 플러스/마이너스 기호를 그립니다. */
 .add-btn::before,
 .remove-btn::before,
 .add-btn::after {
@@ -274,7 +274,7 @@ button:disabled:hover {
   transition: transform 0.12s ease;
 }
 
-/* Add-section buttons use an icon-like plus symbol instead of visible text. */
+/* 섹션 추가 버튼은 글자 대신 아이콘처럼 보이는 플러스 기호를 사용합니다. */
 .add-section-btn:after {
   content: attr(data-lang);
 }
@@ -284,7 +284,7 @@ button:disabled:hover {
   font-weight: 900;
 }
 
-/* Language toggles and add-section buttons share the same compact button shell. */
+/* 언어 토글과 섹션 추가 버튼은 같은 작은 버튼 틀을 공유합니다. */
 .lang-btn,
 .add-section-btn {
   display: flex;
@@ -295,7 +295,7 @@ button:disabled:hover {
   touch-action: none;
 }
 
-/* Generated SAMI output area; hidden/positioned dynamically by script.js. */
+/* 생성된 SAMI 출력 영역입니다. script.js가 표시 여부와 위치를 동적으로 조절합니다. */
 #output {
   display: none;
   margin-top: 10px;
@@ -313,12 +313,12 @@ button:disabled:hover {
   outline: none;
 }
 
-/* Generic utility class used by modals, output, and controls. */
+/* 모달, 출력 영역, 컨트롤에서 공통으로 쓰는 숨김 유틸리티 클래스입니다. */
 .hidden {
   display: none;
 }
 
-/* Vertical language toggle strip fixed in the editor area. */
+/* 편집 영역에 고정되는 세로 언어 토글 바입니다. */
 .language-toggle {
   position: fixed;
   top: 20px;
@@ -330,7 +330,7 @@ button:disabled:hover {
   z-index: 1040;
 }
 
-/* Plus button that opens the language picker. */
+/* 언어 선택기를 여는 플러스 버튼입니다. */
 .lang-add-btn {
   width: 40px;
   height: 40px;
@@ -344,7 +344,7 @@ button:disabled:hover {
   display: block;
 }
 
-/* Active language buttons are colored from language-specific CSS variables. */
+/* 활성 언어 버튼은 언어별 CSS 변수에서 색상을 가져옵니다. */
 .lang-btn {
   width: 80px;
   height: 40px;
@@ -364,7 +364,7 @@ button:disabled:hover {
   position: relative;
 }
 
-/* Drag target feedback when copying timing structure between languages. */
+/* 언어 사이에서 시간 구조를 복사할 때 드롭 대상 피드백을 표시합니다. */
 .lang-btn.drop-target {
   box-shadow: 0 0 0 3px rgba(0, 150, 255, 0.9) inset,
     0 0 8px rgba(0, 150, 255, 0.7);
@@ -372,13 +372,13 @@ button:disabled:hover {
   transition: box-shadow 0.15s, transform 0.15s;
 }
 
-/* Active language buttons are shown in the language strip. */
+/* 활성 언어 버튼은 언어 바에 표시됩니다. */
 .lang-btn.active {
   background: var(--btn-color);
   color: #fff;
 }
 
-/* Ready language buttons allow detailed editing and show a highlight stripe. */
+/* ready 언어 버튼은 세부 편집을 허용하고 강조 줄무늬를 보여줍니다. */
 .lang-btn.ready {
   position: relative;
 }
@@ -412,12 +412,12 @@ button:disabled:hover {
   z-index: 9998;
 }
 
-/* Legacy download button selector retained for older markup. */
+/* 이전 마크업을 위해 남겨둔 다운로드 버튼 선택자입니다. */
 #downloadButton {
   margin-top: 0px;
 }
 
-/* Fullscreen overlay for choosing additional languages. */
+/* 추가 언어를 선택하기 위한 전체화면 오버레이입니다. */
 .lang-modal {
   position: absolute;
   top: 100%;
@@ -435,7 +435,7 @@ button:disabled:hover {
   height: 0;
 }
 
-/* Scrollable picker surface positioned beside the language strip. */
+/* 언어 바 옆에 배치되는 스크롤 가능한 선택기 영역입니다. */
 .lang-modal-content {
   position: relative;
   width: 100px;
@@ -463,7 +463,7 @@ button:disabled:hover {
   top: 18px;
 }
 
-/* Inner scroll list; script.js clones items to simulate infinite scrolling. */
+/* 내부 스크롤 목록입니다. script.js가 항목을 복제해 무한 스크롤처럼 보이게 합니다. */
 .lang-modal-scroll {
   top: 0;
   left: 0;
@@ -519,7 +519,7 @@ button:disabled:hover {
   z-index: 2000;
 }
 
-/* Buttons inside the language picker mirror each language color. */
+/* 언어 선택기 안의 버튼은 각 언어 색상을 반영합니다. */
 .lang-modal-content .lang-select-btn {
   margin-bottom: -2px;
   position: relative;
@@ -554,7 +554,7 @@ button:disabled:hover {
   transform: none !important;
 }
 
-/* Right-hand editor pane with independent vertical scrolling. */
+/* 독립적으로 세로 스크롤되는 오른쪽 편집 패널입니다. */
 .main-content {
   margin-left: 40%;
   width: 100%;
@@ -566,7 +566,7 @@ button:disabled:hover {
   padding-bottom: 50px;
 }
 
-/* Media player column keeps video, timeline, and waveform stacked together. */
+/* 미디어 플레이어 열은 비디오, 타임라인, 파형을 세로로 함께 쌓습니다. */
 .video-panel #player-container {
   background: #000000;
   padding: 0px;
@@ -578,7 +578,7 @@ button:disabled:hover {
   margin: 0 auto;
 }
 
-/* Player flex shell; fullscreen rules below reshape this container. */
+/* 플레이어 flex 틀입니다. 아래 전체화면 규칙이 이 컨테이너 형태를 바꿉니다. */
 #player-container {
   display: flex;
   flex-direction: column;
@@ -586,7 +586,7 @@ button:disabled:hover {
   gap: 4px;
 }
 
-/* Click/drop target for video or audio files. */
+/* 비디오나 오디오 파일을 클릭으로 고르거나 드롭하는 대상입니다. */
 .video-panel #video-container {
   width: 100%;
   position: relative;
@@ -596,13 +596,15 @@ button:disabled:hover {
   background: #f9fafb;
   cursor: pointer;
   aspect-ratio: 16 / 9;
+  overflow: hidden;
+  isolation: isolate;
 }
 
 #video-container {
   flex: 0 0 auto;
 }
 
-/* Fullscreen player should fill the viewport without the editor chrome. */
+/* 전체화면 플레이어는 편집 UI 없이 뷰포트를 가득 채웁니다. */
 #player-container:-webkit-full-screen,
 #player-container:fullscreen {
   padding: 0 !important;
@@ -613,7 +615,7 @@ button:disabled:hover {
   background: transparent !important;
 }
 
-/* In fullscreen, the video container becomes the entire stage. */
+/* 전체화면에서는 비디오 컨테이너가 전체 무대가 됩니다. */
 #player-container:-webkit-full-screen #video-container,
 #player-container:fullscreen #video-container {
   position: absolute;
@@ -627,7 +629,7 @@ button:disabled:hover {
   background: transparent !important;
 }
 
-/* Fullscreen media covers the stage for subtitle preview. */
+/* 전체화면 미디어는 자막 미리보기를 위해 무대를 덮습니다. */
 #player-container:-webkit-full-screen video,
 #player-container:fullscreen video {
   width: 100% !important;
@@ -637,7 +639,7 @@ button:disabled:hover {
   border-radius: 0 !important;
 }
 
-/* Fullscreen controls are hidden until the user moves the mouse. */
+/* 전체화면 컨트롤은 사용자가 마우스를 움직일 때까지 숨겨집니다. */
 #player-container:-webkit-full-screen .controls,
 #player-container:fullscreen .controls {
   opacity: 0;
@@ -650,7 +652,7 @@ button:disabled:hover {
   pointer-events: none;
 }
 
-/* Fullscreen timeline appears at the bottom as a temporary scrub control. */
+/* 전체화면 타임라인은 임시 탐색 컨트롤로 하단에 표시됩니다. */
 #player-container:-webkit-full-screen #timelineContainer,
 #player-container:fullscreen #timelineContainer {
   position: absolute !important;
@@ -717,23 +719,27 @@ button:disabled:hover {
   display: none !important;
 }
 
-/* The waveform is editing-only, so it is hidden while previewing fullscreen. */
+/* 파형은 편집 전용이므로 전체화면 미리보기 중에는 숨깁니다. */
 #player-container:fullscreen #waveformContainer,
 #player-container:-webkit-full-screen #waveformContainer {
   display: none;
 }
 
-/* Loaded media fills the 16:9 stage; hidden until a file is selected. */
+/* 불러온 미디어는 16:9 무대를 채우며, 파일 선택 전에는 숨겨집니다. */
 .video-panel video {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
+  flex: none;
   border-radius: 0;
   background: black;
   object-fit: cover;
   display: none;
+  z-index: 0;
 }
 
-/* Placeholder text sits in the empty media drop zone. */
+/* 플레이스홀더 텍스트는 빈 미디어 드롭 영역에 표시됩니다. */
 .video-panel #video-placeholder {
   position: absolute;
   text-align: center;
@@ -742,7 +748,7 @@ button:disabled:hover {
   pointer-events: none;
 }
 
-/* Timeline canvas receives pointer events; playhead is drawn as a separate div. */
+/* 타임라인 캔버스는 포인터 이벤트를 받고, 재생 위치는 별도 div로 그립니다. */
 .video-panel #timelineCanvas {
   position: absolute;
   left: 0;
@@ -756,7 +762,7 @@ button:disabled:hover {
   z-index: 3;
 }
 
-/* Legacy control row layout retained for older control markup. */
+/* 이전 컨트롤 마크업을 위해 남겨둔 컨트롤 행 레이아웃입니다. */
 .video-panel .controls {
   display: flex;
   flex-wrap: wrap;
@@ -766,7 +772,7 @@ button:disabled:hover {
   padding: 0;
 }
 
-/* Generic media control button style. */
+/* 일반 미디어 컨트롤 버튼 스타일입니다. */
 .control-btn {
   padding: 8px 14px;
   margin-left: 10px;
@@ -804,7 +810,7 @@ button:disabled:hover {
   color: #4b5563;
 }
 
-/* Media-panel-specific button treatment. */
+/* 미디어 패널 전용 버튼 스타일입니다. */
 .video-panel button {
   padding: 8px 14px;
   border-radius: 8px;
@@ -829,7 +835,7 @@ button:disabled:hover {
   text-align: center;
 }
 
-/* Draggable vertical divider between the media pane and subtitle editor. */
+/* 미디어 패널과 자막 편집기 사이의 드래그 가능한 세로 분할선입니다. */
 #divider {
   position: absolute;
   top: 0;
@@ -846,7 +852,7 @@ button:disabled:hover {
   background: transparent;
 }
 
-/* Wider invisible hit area makes the divider easier to grab. */
+/* 보이지 않는 넓은 클릭 영역으로 분할선을 더 쉽게 잡을 수 있게 합니다. */
 #divider::before {
   content: "";
   position: absolute;
@@ -875,7 +881,7 @@ input[type="range"]:disabled:hover {
   cursor: default !important;
 }
 
-/* Timer button state is controlled by script.js when media is loaded. */
+/* 타이머 버튼 상태는 미디어가 로드될 때 script.js가 제어합니다. */
 #copy-btn {
   position: relative;
 }
@@ -919,7 +925,7 @@ input.error:focus {
   display: none !important;
 }
 
-/* Custom plus icon used by the add-language button. */
+/* 언어 추가 버튼에 사용하는 커스텀 플러스 아이콘입니다. */
 .icon {
   width: 16px;
   height: 16px;
@@ -927,7 +933,7 @@ input.error:focus {
   cursor: pointer;
   margin-top: -8px;
 }
-/* Bars combine into the animated plus/cross shape. */
+/* 막대 요소들이 합쳐져 애니메이션 플러스/닫기 모양을 만듭니다. */
 .bar {
   position: absolute;
   background: #fff;
@@ -963,7 +969,7 @@ input.error:focus {
   transform-origin: left center;
 }
 
-/* Rotate bars when the language picker is open. */
+/* 언어 선택기가 열렸을 때 막대를 회전시킵니다. */
 #addLanguageButton.active .bar.horizontal.left {
   top: -1.5px;
   left: 1px;
@@ -975,7 +981,7 @@ input.error:focus {
   transform: rotate(45deg);
 }
 
-/* Shared dimming layer behind popups and the language picker. */
+/* 팝업과 언어 선택기 뒤에 깔리는 공통 어둡게 처리 레이어입니다. */
 .modal-backdrop {
   position: fixed;
   top: 0;
@@ -992,14 +998,14 @@ input.error:focus {
   display: none;
 }
 
-/* Fixed position for the language add button within the toggle strip. */
+/* 언어 토글 바 안에서 언어 추가 버튼의 고정 위치를 지정합니다. */
 #addLanguageButton {
   top: 16px;
   position: relative;
   z-index: 1100;
 }
 
-/* Temporary interaction shield around active language buttons. */
+/* 활성 언어 버튼 주변의 임시 상호작용 차단 레이어입니다. */
 #toggleBackdrop {
   position: fixed;
   background: rgba(0, 0, 0, 0.6);
@@ -1009,13 +1015,13 @@ input.error:focus {
   display: none;
 }
 
-/* Covered language buttons are dimmed while the picker is active. */
+/* 선택기가 활성화된 동안 가려진 언어 버튼을 어둡게 표시합니다. */
 .lang-btn.covered {
   pointer-events: none;
 }
 
 button,
-/* Disable text selection on control-like UI elements. */
+/* 컨트롤처럼 동작하는 UI 요소에서 텍스트 선택을 막습니다. */
 .lang-btn,
 .add-btn,
 .remove-btn,
@@ -1052,7 +1058,7 @@ button,
   background-repeat: no-repeat;
 }
 
-/* Ready language buttons fill in as a visual completion cue. */
+/* ready 언어 버튼은 완료 느낌을 주기 위해 채워지는 애니메이션을 사용합니다. */
 @keyframes slideFill {
   from {
     background-size: 0% 100%;
@@ -1066,7 +1072,7 @@ button,
   animation: slideFill 0.3s forwards ease-out;
 }
 
-/* Center popup overlay for validation errors. */
+/* 검증 오류를 보여주는 중앙 팝업 오버레이입니다. */
 .center-popup-overlay {
   position: fixed;
   top: 0;
@@ -1086,7 +1092,7 @@ button,
   pointer-events: auto;
 }
 
-/* Validation popup shell. */
+/* 검증 팝업의 외곽 컨테이너입니다. */
 .center-popup {
   position: fixed;
   top: 50%;
@@ -1110,7 +1116,7 @@ button,
   transform: translate(-50%, -50%);
 }
 
-/* Close affordance for centered popups. */
+/* 중앙 팝업을 닫기 위한 컨트롤입니다. */
 .center-popup-close {
   position: absolute;
   top: 8px;
@@ -1125,7 +1131,7 @@ button,
   text-align: center;
 }
 
-/* Position the Pickr popup using custom properties set from script.js. */
+/* script.js가 설정한 사용자 정의 속성으로 Pickr 팝업 위치를 잡습니다. */
 .pickr {
   position: fixed !important;
   top: 50% !important;
@@ -1135,13 +1141,13 @@ button,
   z-index: 10000 !important;
 }
 
-/* Hide Pickr's default trigger because a hidden button is used as the anchor. */
+/* 숨겨진 버튼을 기준점으로 쓰므로 Pickr 기본 트리거는 숨깁니다. */
 .pcr-button,
 .pickr__button {
   display: none !important;
 }
 
-/* Pickr panel lives above the temporary dimming overlay. */
+/* Pickr 패널은 임시 어둡게 처리 레이어보다 위에 표시됩니다. */
 .pcr-app {
   display: none !important;
 }
@@ -1157,7 +1163,7 @@ button,
   z-index: 10010 !important;
 }
 
-/* Top-level add-section buttons inside language containers. */
+/* 언어 컨테이너 안의 최상위 섹션 추가 버튼입니다. */
 .section-container > button {
   position: relative;
 }
@@ -1170,7 +1176,7 @@ button,
   border-bottom-left-radius: 0;
 }
 
-/* Add-section buttons also draw their plus sign via pseudo-elements. */
+/* 섹션 추가 버튼도 의사 요소로 플러스 기호를 그립니다. */
 .add-section-btn::before,
 .section-container > button::before {
   content: "";
@@ -1183,7 +1189,7 @@ button,
   pointer-events: none;
 }
 
-/* Decorative notch that visually connects a section to its controls. */
+/* 섹션과 컨트롤을 시각적으로 이어주는 장식 노치입니다. */
 .input-section::before {
   content: "";
   position: absolute;
@@ -1204,17 +1210,17 @@ button,
   background-color: var(--section-btn-color);
 }
 
-/* Keep the language add button stable on hover. */
+/* hover 중에도 언어 추가 버튼이 흔들리지 않게 유지합니다. */
 #addLanguageButton.lang-add-btn.icon:hover {
   transform: scale(1.22) !important;
 }
 
-/* Raise the language strip above the color picker overlay. */
+/* 언어 바를 색상 선택기 오버레이보다 위로 올립니다. */
 .language-toggle.on-top {
   z-index: 10002 !important;
 }
 
-/* Keep the button being edited above the dimmed language strip. */
+/* 편집 중인 버튼을 어둡게 처리된 언어 바보다 위에 둡니다. */
 .lang-btn.pickr-open {
   z-index: 10002 !important;
 
@@ -1222,14 +1228,14 @@ button,
   transform: scale(1.08) !important;
 }
 
-/* Dim inactive language buttons while color selection is open. */
+/* 색상 선택 중에는 비활성 언어 버튼을 흐리게 표시합니다. */
 .language-toggle .dim {
   opacity: 0;
   transition: opacity 0.3s ease;
   pointer-events: none !important;
 }
 
-/* Entry animation for newly available add controls. */
+/* 새로 사용 가능해진 추가 컨트롤의 등장 애니메이션입니다. */
 @keyframes rotateInBounce {
   0% {
     transform: rotate(-360deg) scale(0);
@@ -1253,7 +1259,7 @@ button,
   animation: rotateInBounce 0.8s ease-out forwards;
 }
 
-/* Entry animation for remove controls. */
+/* 삭제 컨트롤의 등장 애니메이션입니다. */
 @keyframes flipInBounce {
   0% {
     transform: rotateX(-90deg) scale(0);
@@ -1284,7 +1290,7 @@ button,
   animation: flipInBounce 0.7s ease-out forwards;
 }
 
-/* Validation popup sizing. */
+/* 검증 팝업 크기 설정입니다. */
 #invalidInputPopup {
   max-height: 280px;
   overflow: visible;
@@ -1330,7 +1336,7 @@ html {
   margin: 0;
 }
 
-/* Narrow hover handle that reveals the bookmark rail. */
+/* 북마크 영역을 드러내는 좁은 hover 핸들입니다. */
 #handle {
   position: fixed;
   top: 0;
@@ -1341,7 +1347,7 @@ html {
   z-index: 100;
 }
 
-/* Bookmark rail container; visible while hovered. */
+/* 북마크 레일 컨테이너입니다. hover 중에 표시됩니다. */
 #container {
   position: fixed;
   top: 0;
@@ -1358,7 +1364,7 @@ html {
   opacity: 1;
 }
 
-/* One bookmark dot per visible language section. */
+/* 보이는 언어 섹션마다 하나씩 표시되는 북마크 점입니다. */
 .bookmark {
   position: absolute;
   right: 23px;
@@ -1374,7 +1380,7 @@ html {
   transform: scale(1.58);
 }
 
-/* Floating generate/output toggle button. */
+/* 떠 있는 생성/출력 전환 버튼입니다. */
 .click-anim-container {
   position: relative;
   z-index: 60;
@@ -1387,7 +1393,7 @@ html {
   cursor: pointer;
 }
 
-/* Inner animated icon wrapper. */
+/* 내부 애니메이션 아이콘 래퍼입니다. */
 .click-anim-inner {
   position: absolute;
   display: flex;
@@ -1399,7 +1405,7 @@ html {
   transform: scale(1.15);
 }
 
-/* Custom arrow/dash pieces used by the generate toggle icon. */
+/* 생성 전환 아이콘에 사용하는 커스텀 화살표/대시 조각입니다. */
 .arrow,
 .dash {
   display: inline-block;
@@ -1441,7 +1447,7 @@ html {
   border-radius: 3px;
   transition: transform 0.3s ease, margin 0.3s ease, opacity 0.3s ease;
 }
-/* Icon state 0: collapsed/idle. */
+/* 아이콘 상태 0: 접힌 대기 상태입니다. */
 .click-anim-container[data-state="0"] .dash {
   transform: none;
   margin: 0 -24px;
@@ -1450,7 +1456,7 @@ html {
 .click-anim-container[data-state="0"] .arrow-right {
   opacity: 0;
 }
-/* Icon state 1: expanded/generate mode. */
+/* 아이콘 상태 1: 펼쳐진 생성 모드입니다. */
 .click-anim-container[data-state="1"] .dash {
   transform: rotate(-75deg);
   margin: 0 -16px;
@@ -1459,7 +1465,7 @@ html {
 .click-anim-container[data-state="1"] .arrow-right {
   opacity: 1;
 }
-/* Icon state 2: output-view mode. */
+/* 아이콘 상태 2: 출력 보기 모드입니다. */
 .click-anim-container[data-state="2"] .dash {
   transform: rotate(-75deg);
   margin: 0 -37px;
@@ -1469,14 +1475,14 @@ html {
   opacity: 1;
 }
 
-/* Lock background interactions while validation is visible. */
+/* 검증 팝업이 보이는 동안 배경 상호작용을 잠급니다. */
 body.modal-open * {
   animation-play-state: paused !important;
 
   transition: none !important;
 }
 
-/* Minimal mode hides editing controls and focuses on generated output. */
+/* 미니멀 모드는 편집 컨트롤을 숨기고 생성 출력에 집중합니다. */
 .main-content.minimal .container > :not(#output) {
   display: none !important;
 }
@@ -1504,7 +1510,7 @@ body.modal-open * {
   padding-right: 100px;
 }
 
-/* Download is hidden inside fullscreen preview. */
+/* 전체화면 미리보기 안에서는 다운로드 버튼을 숨깁니다. */
 #player-container:-webkit-full-screen #download-btn,
 #player-container:fullscreen #download-btn {
   display: none !important;
@@ -1520,7 +1526,7 @@ body.modal-open * {
   display: none !important;
 }
 
-/* Disabled time display looks non-interactive before media is loaded. */
+/* 미디어 로드 전 비활성 시간 표시가 상호작용 불가처럼 보이게 합니다. */
 #time-display:disabled {
   background: #f9fafb;
   opacity: 0.5;
@@ -1531,7 +1537,7 @@ body.modal-open * {
   pointer-events: none;
 }
 
-/* Waveform editor below the timeline; hidden until audio decoding succeeds. */
+/* 타임라인 아래의 파형 편집기입니다. 오디오 디코딩이 성공할 때까지 숨깁니다. */
 #waveformContainer {
   position: relative;
   background-color: #f9fafb;
@@ -1549,7 +1555,7 @@ body.modal-open * {
   flex: 1 1 auto;
 }
 
-/* Waveform canvas fills its container and accepts seek/zoom gestures. */
+/* 파형 캔버스는 컨테이너를 채우고 탐색/줌 제스처를 받습니다. */
 #waveformCanvas {
   position: absolute;
   left: 0;
@@ -1570,22 +1576,29 @@ body.modal-open * {
   z-index: 3;
 }
 
-/* Live subtitle preview overlay positioned near the bottom of the video. */
+/* 비디오 하단 가까이에 배치되는 실시간 자막 미리보기 오버레이입니다. */
 #samiOverlay {
   position: absolute;
+  top: auto;
   bottom: 5%;
-  left: 0;
+  left: 50%;
+  right: auto;
   width: 100%;
+  margin: 0;
+  padding: 0 3%;
+  box-sizing: border-box;
+  transform: translateX(-50%);
   text-align: center;
   pointer-events: none;
   font-size: 38pt;
   line-height: 1;
   color: #fff;
   text-shadow: 2px 2px 4px #000;
+  z-index: 10;
   will-change: transform, opacity;
 }
 
-/* Timeline wrapper provides positioning for playhead and zoom highlight. */
+/* 타임라인 래퍼는 재생 위치와 줌 강조 표시의 기준 위치를 제공합니다. */
 #timelineContainer {
   display: flex;
   align-items: center;
@@ -1597,7 +1610,7 @@ body.modal-open * {
   box-sizing: border-box;
 }
 
-/* Shows which part of the full timeline is visible in the zoomed waveform. */
+/* 전체 타임라인 중 확대된 파형에서 보이는 부분을 표시합니다. */
 #zoomHighlight {
   position: absolute;
   top: 50%;
@@ -1615,7 +1628,7 @@ body.modal-open * {
   display: none !important;
 }
 
-/* Fixed left toolbar for media and export controls. */
+/* 미디어와 내보내기 컨트롤을 담는 고정 왼쪽 툴바입니다. */
 #leftBar {
   position: fixed;
   top: 0;
@@ -1633,7 +1646,7 @@ body.modal-open * {
   gap: 60px;
 }
 
-/* Legacy title placement inside the toolbar area. */
+/* 툴바 영역 안의 이전 제목 배치 스타일입니다. */
 #leftBar #titleHeading {
   position: static;
   bottom: auto;
@@ -1661,7 +1674,7 @@ body.modal-open * {
   color: #4285f4;
 }
 
-/* Toolbar button geometry when grouped in a leftbar-controls wrapper. */
+/* leftbar-controls 래퍼 안에 묶였을 때의 툴바 버튼 형태입니다. */
 #leftBar .leftbar-controls button {
   padding: 8px 0;
   font-size: 14px;
@@ -1682,7 +1695,7 @@ body.modal-open * {
   pointer-events: none;
 }
 
-/* Left media pane; width is resized by dragging the divider. */
+/* 왼쪽 미디어 패널입니다. 분할선을 드래그해 너비를 조정합니다. */
 .video-panel {
   margin-left: 50px;
   height: 100vh;
@@ -1703,7 +1716,7 @@ body.modal-open * {
   margin-left: calc(50px + 40%);
 }
 
-/* Download button appears as an icon-only toolbar action. */
+/* 다운로드 버튼은 아이콘만 있는 툴바 동작으로 표시됩니다. */
 #leftBar #download-btn {
   position: absolute;
   top: 50%;
@@ -1711,7 +1724,7 @@ body.modal-open * {
   transform: translate(-50%, -50%);
 }
 
-/* Shared icon toolbar button styling. */
+/* 아이콘 툴바 버튼이 공유하는 스타일입니다. */
 #copy-btn,
 #fullscreen-btn,
 #download-btn {
@@ -1733,7 +1746,7 @@ body.modal-open * {
   background: none !important;
 }
 
-/* Material icon sizing and color. */
+/* Material 아이콘의 크기와 색상입니다. */
 .material-icons {
   font-family: "Material Icons" !important;
   font-weight: normal !important;
@@ -1761,12 +1774,12 @@ body.modal-open * {
   font-size: 24px;
 }
 
-/* Positioning context for overlay controls inside the media stage. */
+/* 미디어 무대 안 오버레이 컨트롤의 위치 기준입니다. */
 #video-container {
   position: relative;
 }
 
-/* Current-time field is fixed to the lower-right of the media stage. */
+/* 현재 시간 입력칸은 미디어 무대 오른쪽 아래에 고정됩니다. */
 #video-container #time-display {
   position: absolute;
   bottom: 10px;
@@ -1790,12 +1803,12 @@ body.modal-open * {
   order: 4;
 }
 
-/* Feedback while dragging a timestamp between fields. */
+/* 입력칸 사이에서 타임스탬프를 드래그할 때의 피드백입니다. */
 .dragging {
   opacity: 0.6;
 }
 
-/* Caption toggle button mirrors the other toolbar icon buttons. */
+/* 자막 토글 버튼은 다른 툴바 아이콘 버튼과 같은 형태를 사용합니다. */
 #caption-btn {
   background: none !important;
   border: none !important;
@@ -1812,7 +1825,7 @@ body.modal-open * {
   background: none !important;
 }
 
-/* Timer icon opacity communicates whether the time field is visible. */
+/* 타이머 아이콘의 투명도로 시간 입력칸 표시 여부를 전달합니다. */
 #copy-btn .material-icons {
   color: #fff;
 }
@@ -1821,7 +1834,7 @@ body.modal-open * {
   color: #4285f4;
 }
 
-/* DOM playheads are positioned over both the timeline and waveform. */
+/* DOM 재생 위치 표시는 타임라인과 파형 위에 배치됩니다. */
 #playhead,
 #waveformPlayhead {
   position: absolute;

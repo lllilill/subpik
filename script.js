@@ -1,5 +1,5 @@
-// Central language registry. Each entry controls the UI label, SAMI class,
-// default subtitle font, default language color, and initial visibility.
+// 언어 설정의 중심 목록입니다. 각 항목은 UI 라벨, SAMI 클래스,
+// 기본 자막 글꼴, 언어 색상, 초기 표시 여부를 정의합니다.
 const LANGUAGES = [
   {
     key: "chinese",
@@ -163,31 +163,31 @@ const LANGUAGES = [
   },
 ];
 
-// Fast lookup from SAMI class name such as "KRCC" to its configured font.
+// "KRCC" 같은 SAMI 클래스 이름으로 설정된 글꼴을 빠르게 찾기 위한 표입니다.
 const fontFamilies = LANGUAGES.reduce((acc, { label, fontFamily }) => {
   const code = `${label}CC`;
   acc[code] = fontFamily;
   return acc;
 }, {});
 
-// Fast lookup from SAMI class name to its base point size.
+// SAMI 클래스 이름으로 기본 글자 크기를 빠르게 찾기 위한 표입니다.
 const fullPt = LANGUAGES.reduce((acc, { label, fontSize }) => {
   const code = `${label}CC`;
   acc[code] = fontSize;
   return acc;
 }, {});
 
-// Expose every language color as a CSS custom property.
+// 각 언어 색상을 CSS 사용자 정의 속성으로 등록합니다.
 LANGUAGES.forEach(({ label, color }) => {
   const varName = `--lang-${label}CC`;
 
   document.documentElement.style.setProperty(varName, color);
 });
 
-// SAMI class names used throughout generated subtitle sections.
+// 생성되는 자막 섹션 전반에서 사용할 SAMI 클래스 이름 목록입니다.
 const LANGUAGE_CODES = LANGUAGES.map((lang) => `${lang.label}CC`);
 
-// Metadata needed to find each language's editor container.
+// 각 언어의 편집 컨테이너를 찾기 위한 메타데이터입니다.
 const LANG = LANGUAGES.reduce((acc, { key, label }) => {
   const code = `${label}CC`;
   acc[code] = {
@@ -197,21 +197,21 @@ const LANG = LANGUAGES.reduce((acc, { key, label }) => {
   return acc;
 }, {});
 
-// Converts user-facing language keys to SAMI class codes.
+// 사용자에게 보이는 언어 키를 SAMI 클래스 코드로 변환합니다.
 const codeMap = LANGUAGES.reduce((acc, { key, label }) => {
   acc[key] = `${label}CC`;
   return acc;
 }, {});
 
-// The app is intentionally dependency-light: after the DOM is ready, all
-// controls, generated sections, media behavior, and export logic are wired here.
+// 이 앱은 의존성을 가볍게 유지합니다. DOM 준비가 끝나면 모든
+// 컨트롤, 생성 섹션, 미디어 동작, 내보내기 로직을 여기에서 연결합니다.
 document.addEventListener("DOMContentLoaded", () => {
-  // Auto-scroll is used while dragging the waveform seek handle beyond bounds.
+  // 파형 탐색 중 포인터가 영역 밖으로 나갈 때 자동 스크롤에 사용합니다.
   let autoScrollInterval = null;
   const SCROLL_SPEED_PX = 15;
   const SCROLL_INTERVAL_MS = 40;
 
-  // Audio decoding state used to draw and navigate the waveform.
+  // 파형을 그리고 탐색하기 위한 오디오 디코딩 상태입니다.
   const audioContext = new (window.AudioContext ||
     window.webkitAudioContext)();
   let audioBuffer = null;
@@ -220,7 +220,7 @@ document.addEventListener("DOMContentLoaded", () => {
   let zoomLevel = 1;
   let panOffset = 0;
 
-  // Smoothly follows the playhead when the waveform is zoomed in.
+  // 파형을 확대했을 때 재생 위치를 부드럽게 따라가도록 합니다.
   let panOffsetTarget = 0;
   const panSmooth = 0.1;
 
@@ -228,14 +228,14 @@ document.addEventListener("DOMContentLoaded", () => {
   let maxZoom;
   let isSeeking = false;
 
-  // Main waveform and playhead elements reused by seeking, drawing, and resize.
+  // 탐색, 그리기, 크기 변경에서 재사용하는 주요 파형과 재생 위치 요소입니다.
   const waveformContainer = document.getElementById("waveformContainer");
   const waveformCanvas = document.getElementById("waveformCanvas");
   const canvasCtx = waveformCanvas.getContext("2d");
   const playheadDiv = document.getElementById("playhead");
   const waveformPlayheadDiv = document.getElementById("waveformPlayhead");
 
-  // Convert seconds to the mm:ss.mmm format used by the visible time field.
+  // 초 단위 시간을 화면의 시간 입력칸에서 쓰는 mm:ss.mmm 형식으로 바꿉니다.
   function formatTime(t) {
     const totalMs = Math.floor(t * 1000);
     const ms = totalMs % 1000;
@@ -246,14 +246,17 @@ document.addEventListener("DOMContentLoaded", () => {
       .padStart(2, "0")}.${ms.toString().padStart(3, "0")}`;
   }
 
-  // Parsed cues from the generated SAMI output for live subtitle preview.
+  // 생성된 SAMI 출력에서 파싱한 실시간 자막 미리보기용 큐입니다.
   let samiCues = [];
 
-  // Rebuild preview cues whenever the generated SAMI text changes.
+  // 생성된 SAMI 텍스트가 바뀔 때마다 미리보기 큐를 다시 만듭니다.
   function updateSamiCues() {
     const sami = document.getElementById("output").value;
-    if (!sami) return;
     samiCues = [];
+    if (!sami) {
+      renderSamiOverlay(video.currentTime);
+      return;
+    }
     const syncRe =
       /<SYNC Start=(\d+)><P Class=(\w+)>([\s\S]*?)(?=(<SYNC|$))/gi;
     let m;
@@ -268,15 +271,16 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     }
     samiCues.sort((a, b) => a.start - b.start);
+    renderSamiOverlay(video.currentTime);
   }
 
-  // Local copy used by subtitle scaling logic while the preview overlay updates.
+  // 미리보기 오버레이 갱신 중 자막 크기 조절 로직에서 쓰는 로컬 복사본입니다.
   const fullPt = LANGUAGES.reduce((acc, { label, fontSize }) => {
     acc[`${label}CC`] = fontSize;
     return acc;
   }, {});
 
-  // Keep subtitle overlay text proportional to the currently displayed video size.
+  // 현재 표시되는 비디오 크기에 맞춰 자막 오버레이 글자 크기를 비례 조정합니다.
   function updateSubtitleScale() {
     const overlay = document.getElementById("samiOverlay");
     const currentWidth = videoContainer.clientWidth;
@@ -294,19 +298,17 @@ document.addEventListener("DOMContentLoaded", () => {
       el.style.lineHeight = `${scaledPt}pt`;
     });
 
-    if (baselineOverlayBottom) {
-      overlay.style.bottom = `${baselineOverlayBottom * scale}px`;
-    }
+    overlay.style.bottom = "5%";
   }
 
-  // Mirror the media element's current time into the draggable time input.
+  // 미디어의 현재 시간을 드래그 가능한 시간 입력칸에 반영합니다.
   function updateTimeDisplay() {
     if (!isNaN(video.duration)) {
       timeDisplay.value = formatTime(video.currentTime);
     }
   }
 
-  // Show all validation failures together so the user can fix them in one pass.
+  // 사용자가 한 번에 고칠 수 있도록 모든 검증 실패 항목을 함께 보여줍니다.
   function showInvalidInputModal(items) {
     const overlay = document.getElementById("invalidInputOverlay");
     const popup = document.getElementById("invalidInputPopup");
@@ -327,14 +329,14 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("download-btn").disabled = true;
   }
 
-  // Remove an error highlight once the user returns to a field.
+  // 사용자가 입력칸으로 돌아오면 오류 강조 표시를 제거합니다.
   function clearInputError(el) {
     if (el && el.classList && el.classList.contains("error")) {
       el.classList.remove("error");
     }
   }
 
-  // File drag handlers let users drop a video or audio file onto the player.
+  // 사용자가 비디오나 오디오 파일을 플레이어에 끌어다 놓을 수 있게 하는 파일 드래그 처리입니다.
   const onDragOver = (e) => {
     e.preventDefault();
     videoContainer.style.borderColor = "#6b7280";
@@ -355,7 +357,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   };
 
-  // Fullscreen controls are intentionally transient and fade after the mouse rests.
+  // 전체화면 컨트롤은 잠시만 보이고 마우스가 멈추면 사라지도록 합니다.
   function showControls() {
     player.classList.add("show-controls");
     clearTimeout(controlTimeout);
@@ -364,7 +366,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 500);
   }
 
-  // Reset language drag state after copy/reorder-style interactions finish.
+  // 복사나 정렬 목적의 언어 드래그 상호작용이 끝난 뒤 상태를 초기화합니다.
   function resetDragState() {
     if (dragSourceBtn) dragSourceBtn.style.opacity = "";
     setDropHighlight(null);
@@ -372,7 +374,7 @@ document.addEventListener("DOMContentLoaded", () => {
     dragSourceBtn = null;
   }
 
-  // Build the language toggle buttons from the central registry.
+  // 중앙 언어 목록을 바탕으로 언어 토글 버튼을 만듭니다.
   function renderLanguageButtons() {
     const toggleContainer = document.querySelector(".language-toggle");
     const addBtn = document.getElementById("addLanguageButton");
@@ -400,7 +402,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const addLangBtn = document.getElementById("addLanguageButton");
 
-  // This animated button both generates SAMI output and toggles the output view.
+  // 이 애니메이션 버튼은 SAMI 출력을 생성하고 출력 화면 표시도 전환합니다.
   const clickBtn = document.querySelector(".click-anim-container");
 
   let clickToggle = false;
@@ -490,7 +492,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     });
 
-    // Position the generated SAMI textarea beside the draggable media divider.
+    // 생성된 SAMI textarea를 드래그 가능한 미디어 분할선 옆에 배치합니다.
     function updateOutputBounds() {
       const output = document.getElementById("output");
       if (output.style.display === "none") return;
@@ -524,7 +526,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }px`;
   }
 
-  // Close validation feedback when the user dismisses the popup or backdrop.
+  // 사용자가 팝업이나 배경을 닫으면 검증 안내를 닫습니다.
   document
     .getElementById("invalidInputClose")
     .addEventListener("click", () => {
@@ -550,18 +552,18 @@ document.addEventListener("DOMContentLoaded", () => {
       document.body.classList.remove("modal-open");
     });
 
-  // The active language button whose highlight color Pickr is editing.
+  // Pickr가 강조 색상을 편집 중인 활성 언어 버튼입니다.
   let pickrTargetBtn = null;
 
   const video = document.getElementById("video");
 
-  // Start at a moderate volume so newly loaded media is audible but not loud.
+  // 새로 불러온 미디어가 들리되 너무 크지 않도록 중간 정도 볼륨에서 시작합니다.
   video.volume = 0.5;
 
-  // Dragging the video outside the panel is used as a quick media unload gesture.
+  // 비디오를 패널 밖으로 드래그하면 빠르게 미디어를 제거하는 동작으로 사용합니다.
   video.setAttribute("draggable", true);
 
-  // Clicking directly on the video should play/pause rather than bubble upward.
+  // 비디오를 직접 클릭하면 상위 요소로 전달하지 않고 재생/일시정지만 처리합니다.
   video.addEventListener(
     "click",
     (e) => {
@@ -572,7 +574,7 @@ document.addEventListener("DOMContentLoaded", () => {
     true
   );
 
-  // Disable the unload drag gesture in fullscreen, where dragging feels accidental.
+  // 전체화면에서는 드래그가 실수로 느껴질 수 있어 미디어 제거 드래그를 비활성화합니다.
   video.addEventListener("dragstart", (e) => {
     const isFullScreen =
       document.fullscreenElement === player ||
@@ -584,7 +586,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   let volumeIndicatorTimeout;
 
-  // Temporary on-video volume readout shown after mouse-wheel volume changes.
+  // 마우스 휠로 볼륨을 바꾼 뒤 잠시 표시되는 비디오 위 볼륨 안내입니다.
   function showVolumeIndicator(vol) {
     const videoContainer = document.getElementById("video-container");
 
@@ -626,7 +628,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 1000);
   }
 
-  // Toolbar and media-control elements.
+  // 툴바와 미디어 제어 요소입니다.
   const timeDisplay = document.getElementById("time-display");
   const copyBtn = document.getElementById("copy-btn");
 
@@ -640,7 +642,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const timelineCtx = timelineCanvas.getContext("2d");
   let timelineEnabled = false;
 
-  // Enter toggles fullscreen as a fast keyboard control.
+  // Enter 키로 빠르게 전체화면을 전환합니다.
   document.addEventListener("keydown", (e) => {
     if (e.code === "Enter") {
       e.preventDefault();
@@ -651,7 +653,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const sectionContainers = document.getElementById("sectionContainers");
 
-  // "Ready" languages allow detailed per-line timing controls in their sections.
+  // "ready" 상태의 언어는 섹션 안에서 줄별 세부 시간 제어를 허용합니다.
   function setAddButtonsReady(lang, ready) {
     const code = codeMap[lang];
     const sel = `.add-section-btn[data-lang="${code}"]`;
@@ -664,7 +666,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Create one editor container and top-level add button for every language.
+  // 각 언어마다 편집 컨테이너와 최상단 추가 버튼을 하나씩 만듭니다.
   LANGUAGES.forEach(({ key, label }) => {
     const code = codeMap[key];
     const container = document.createElement("div");
@@ -690,7 +692,7 @@ document.addEventListener("DOMContentLoaded", () => {
     sectionContainers.appendChild(container);
   });
 
-  // Space toggles playback unless the user is typing into an input field.
+  // 사용자가 입력칸에 타이핑 중이 아닐 때 Space 키로 재생을 전환합니다.
   document.addEventListener("keydown", (e) => {
     const ae = document.activeElement;
 
@@ -707,13 +709,13 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // Hide the timeline until a media file has supplied duration metadata.
+  // 미디어 파일에서 재생 시간 정보가 준비될 때까지 타임라인을 숨깁니다.
   timelineCanvas.style.display = "none";
 
   const fileInput = document.getElementById("fileInput");
   const videoContainer = document.getElementById("video-container");
 
-  // Mouse wheel over the media panel controls volume in normal view.
+  // 일반 화면에서는 미디어 패널 위 마우스 휠로 볼륨을 조절합니다.
   videoContainer.addEventListener("wheel", (e) => {
     const isFullscreen =
       document.fullscreenElement === player ||
@@ -730,7 +732,7 @@ document.addEventListener("DOMContentLoaded", () => {
     showVolumeIndicator(newVol);
   });
 
-  // In fullscreen, wheel events land on the document, so handle volume there.
+  // 전체화면에서는 휠 이벤트가 문서에 들어오므로 그곳에서 볼륨을 처리합니다.
   document.addEventListener("wheel", (e) => {
     const isFullscreen =
       document.fullscreenElement === player ||
@@ -744,16 +746,12 @@ document.addEventListener("DOMContentLoaded", () => {
     showVolumeIndicator(newVol);
   });
 
-  // Baseline dimensions are used to scale SAMI overlay text with the video.
+  // 기준 크기는 비디오에 맞춰 SAMI 오버레이 텍스트를 확대/축소할 때 사용합니다.
   let baselineWidth = videoContainer.clientWidth;
-
-  let baselineHeight = videoContainer.clientHeight;
-
-  let baselineOverlayBottom = baselineHeight * 0.05;
 
   const placeholder = document.getElementById("video-placeholder");
 
-  // Shared play/pause helper used by clicks and keyboard shortcuts.
+  // 클릭과 키보드 단축키가 함께 사용하는 재생/일시정지 도우미입니다.
   function togglePlayPause() {
     if (!video.src || wasScrubbing) return;
 
@@ -763,7 +761,7 @@ document.addEventListener("DOMContentLoaded", () => {
     updateTimeDisplay();
   }
 
-  // Empty player opens the file picker; loaded player toggles playback.
+  // 빈 플레이어를 클릭하면 파일 선택기를 열고, 미디어가 있으면 재생을 전환합니다.
   videoContainer.addEventListener("click", (e) => {
     if (!video.src) {
       fileInput.click();
@@ -773,7 +771,7 @@ document.addEventListener("DOMContentLoaded", () => {
     togglePlayPause();
   });
 
-  // Horizontal drag in fullscreen scrubs through the media.
+  // 전체화면에서 가로로 드래그하면 미디어 재생 위치를 탐색합니다.
   videoContainer.addEventListener("mousedown", (e) => {
     const isFullScreen =
       document.fullscreenElement === player ||
@@ -807,7 +805,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // Convert a horizontal pointer position into a media time.
+  // 가로 포인터 위치를 미디어 시간으로 변환합니다.
   function scrubToPosition(e) {
     if (!video.paused) {
       video.pause();
@@ -832,7 +830,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // Hidden file input fallback for users who click instead of drag/drop.
+  // 드래그 대신 클릭하는 사용자를 위한 숨겨진 파일 입력 대체 경로입니다.
   fileInput.addEventListener("change", (e) => {
     const file = e.target.files[0];
 
@@ -844,8 +842,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // Load a media file into the player, decode audio for waveform drawing,
-  // and enable controls that depend on duration metadata.
+  // 미디어 파일을 플레이어에 불러오고, 파형을 그리기 위해 오디오를 디코딩하며,
+  // 재생 시간 정보에 의존하는 컨트롤을 활성화합니다.
   function loadVideo(file) {
     video.addEventListener(
       "loadedmetadata",
@@ -865,9 +863,6 @@ document.addEventListener("DOMContentLoaded", () => {
     placeholder.style.display = "none";
     video.play();
     baselineWidth = videoContainer.clientWidth;
-
-    baselineHeight = videoContainer.clientHeight;
-    baselineOverlayBottom = baselineHeight * 0.05;
 
     timelineCanvas.style.display = "block";
     timelineEnabled = true;
@@ -917,11 +912,12 @@ document.addEventListener("DOMContentLoaded", () => {
       });
   }
 
-  // Keep timeline, time display, and waveform playhead synchronized during playback.
+  // 재생 중 타임라인, 시간 표시, 파형 재생 위치를 동기화합니다.
   video.addEventListener("timeupdate", () => {
     if (!isNaN(video.duration)) {
       drawTimeline();
       updateTimeDisplay();
+      renderSamiOverlay(video.currentTime);
     }
 
     if (!isSeeking && audioBuffer) {
@@ -935,9 +931,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // On every rendered video frame, choose the latest cue for each active class.
-  function updateSamiOverlay(now, metadata) {
-    const t = metadata.mediaTime;
+  // 렌더링되는 각 비디오 프레임마다 활성 클래스별 최신 큐를 선택합니다.
+  function renderSamiOverlay(t = video.currentTime) {
     const lines = [];
     const classes = [...new Set(samiCues.map((c) => c.cls))];
     classes.forEach((cls) => {
@@ -960,6 +955,10 @@ document.addEventListener("DOMContentLoaded", () => {
       overlay.innerHTML = newHTML;
       updateSubtitleScale();
     }
+  }
+
+  function updateSamiOverlay(now, metadata) {
+    renderSamiOverlay(metadata.mediaTime);
 
     video.requestVideoFrameCallback(updateSamiOverlay);
   }
@@ -970,9 +969,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
   video.addEventListener("pause", () => {
     cancelAnimationFrame(playheadReqId);
+    renderSamiOverlay(video.currentTime);
   });
 
-  // Pointer interaction flags for timeline and fullscreen seeking.
+  // 타임라인과 전체화면 탐색에 사용하는 포인터 상호작용 상태값입니다.
   let isScrubbing = false;
   let isTimelineScrubbing = false;
   let scrubTimeout;
@@ -981,7 +981,7 @@ document.addEventListener("DOMContentLoaded", () => {
   let didDrag = false;
   let dragStartX = 0;
 
-  // Seek using the compact timeline just below the video.
+  // 비디오 바로 아래의 작은 타임라인으로 재생 위치를 이동합니다.
   function seekTimelineCanvas(e) {
     const rect = timelineCanvas.getBoundingClientRect();
     let x = e.clientX - rect.left;
@@ -1018,14 +1018,14 @@ document.addEventListener("DOMContentLoaded", () => {
     video.pause();
   });
 
-  // Duration metadata unlocks manual time seeking and timeline drawing.
+  // 재생 시간 정보가 준비되면 수동 시간 이동과 타임라인 그리기를 활성화합니다.
   video.addEventListener("loadedmetadata", () => {
     timeDisplay.disabled = false;
     resizeTimelineCanvas();
     drawTimeline();
   });
 
-  // Clicking the time display pauses so the user can copy or drag the exact time.
+  // 시간 표시를 클릭하면 정확한 시간을 복사하거나 드래그할 수 있도록 일시정지합니다.
   timeDisplay.addEventListener("click", (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -1034,7 +1034,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // If the time display is edited, jump the media to the typed timestamp.
+  // 시간 표시값을 수정하면 입력한 시간으로 미디어를 이동합니다.
   timeDisplay.addEventListener("blur", () => {
     if (timeDisplay.disabled || !video.src) return;
 
@@ -1062,7 +1062,7 @@ document.addEventListener("DOMContentLoaded", () => {
   videoContainer.addEventListener("dragleave", onDragLeave);
   videoContainer.addEventListener("drop", onDrop);
 
-  // Dropping the video outside its container unloads it and resets media UI.
+  // 비디오를 컨테이너 밖에 놓으면 미디어를 제거하고 UI를 초기화합니다.
   video.addEventListener("dragend", (e) => {
     const rect = videoContainer.getBoundingClientRect();
     if (
@@ -1096,7 +1096,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // Timer toolbar button shows or hides the draggable current-time field.
+  // 타이머 툴바 버튼은 드래그 가능한 현재 시간 입력칸을 보이거나 숨깁니다.
   copyBtn.addEventListener("click", () => {
     const td = document.getElementById("time-display");
 
@@ -1112,7 +1112,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   window.addEventListener("resize", updateOutputBounds);
 
-  // Show which segment of the full timeline is currently visible in the waveform.
+  // 전체 타임라인 중 파형에서 현재 보이는 구간을 표시합니다.
   function updateZoomHighlight() {
     if (!audioBuffer || isNaN(video.duration)) {
       document.getElementById("zoomHighlight").style.width = "0";
@@ -1140,7 +1140,49 @@ document.addEventListener("DOMContentLoaded", () => {
     highlight.style.width = `${widthPct}%`;
   }
 
-  // Canvas dimensions must match CSS dimensions before drawing.
+  // The overview playhead uses the full media duration, while the waveform
+  // playhead uses the currently visible (zoomed/panned) waveform coordinates.
+  function setPlayheadPositions(waveformX, mediaTime = video.currentTime) {
+    const timelineWidth = timelineContainer.clientWidth;
+    const timelinePlayheadWidth = playheadDiv.offsetWidth;
+    const waveformWidth = waveformContainer.clientWidth;
+    const waveformPlayheadWidth = waveformPlayheadDiv.offsetWidth;
+
+    const clampedWaveformX = Math.max(
+      0,
+      Math.min(waveformWidth - waveformPlayheadWidth, waveformX)
+    );
+    waveformPlayheadDiv.style.left = clampedWaveformX + "px";
+
+    if (!Number.isFinite(video.duration) || video.duration <= 0) return;
+
+    const timeRatio = Math.max(0, Math.min(1, mediaTime / video.duration));
+    const timelineX = timeRatio * (timelineWidth - timelinePlayheadWidth);
+    playheadDiv.style.left = timelineX + "px";
+  }
+
+  function syncPlayheadsToCurrentWaveformView(mediaTime = video.currentTime) {
+    if (
+      !audioBuffer ||
+      !Number.isFinite(video.duration) ||
+      video.duration <= 0
+    ) {
+      return;
+    }
+
+    const totalSamples = audioBuffer.length;
+    const currentSample = (mediaTime / video.duration) * totalSamples;
+    const segmentLength = Math.floor(totalSamples / zoomLevel);
+    const waveformWidth = waveformContainer.clientWidth;
+    const waveformPlayheadWidth = waveformPlayheadDiv.offsetWidth;
+    const relativePosition = (currentSample - panOffset) / segmentLength;
+    const waveformX =
+      relativePosition * (waveformWidth - waveformPlayheadWidth);
+
+    setPlayheadPositions(waveformX, mediaTime);
+  }
+
+  // 그리기 전에 캔버스 실제 크기를 CSS 크기와 맞춥니다.
   function resizeWaveformCanvas() {
     const rect = waveformContainer.getBoundingClientRect();
     waveformCanvas.width = rect.width;
@@ -1148,7 +1190,7 @@ document.addEventListener("DOMContentLoaded", () => {
     drawWaveform();
   }
 
-  // Keep the timeline canvas crisp after layout changes.
+  // 레이아웃 변경 후에도 타임라인 캔버스가 선명하게 보이도록 합니다.
   function resizeTimelineCanvas() {
     const rect = timelineContainer.getBoundingClientRect();
     timelineCanvas.width = rect.width;
@@ -1156,14 +1198,14 @@ document.addEventListener("DOMContentLoaded", () => {
     drawTimeline();
   }
 
-  // Timeline drawing currently clears the canvas; the playhead is a DOM element.
+  // 현재 타임라인 그리기는 캔버스를 비우며, 재생 위치는 DOM 요소로 표시합니다.
   function drawTimeline() {
     const width = timelineCanvas.width;
     const height = timelineCanvas.height;
     timelineCtx.clearRect(0, 0, width, height);
     if (!timelineEnabled || isNaN(video.duration) || video.duration === 0)
       return;
-    // The red playhead is now rendered via the CSS #playhead element.
+    // 빨간 재생 위치 표시는 이제 CSS #playhead 요소로 렌더링합니다.
   }
 
   window.addEventListener("resize", resizeWaveformCanvas);
@@ -1176,7 +1218,7 @@ document.addEventListener("DOMContentLoaded", () => {
   let controlTimeout;
   const player = document.getElementById("player-container");
 
-  // Entering/exiting fullscreen changes which controls are visible and scaled.
+  // 전체화면 진입/해제 시 보이는 컨트롤과 크기 조정 방식을 바꿉니다.
   function onFullScreenToggle() {
     const isFS =
       document.fullscreenElement === player ||
@@ -1202,14 +1244,14 @@ document.addEventListener("DOMContentLoaded", () => {
     updateSubtitleScale
   );
 
-  // Owns the subtitle editing form and turns visible inputs into SAMI output.
+  // 자막 편집 폼을 관리하고 화면의 입력값을 SAMI 출력으로 변환합니다.
   class SubtitleGenerator {
     constructor() {
-      // Output textarea and title input are shared across every language.
+      // 출력 textarea와 제목 입력칸은 모든 언어가 함께 사용합니다.
       this.output = document.getElementById("output");
       this.titleText = document.getElementById("titleText");
 
-      // Keep an ordered list of section elements for each SAMI class.
+      // 각 SAMI 클래스별 섹션 요소를 순서대로 보관합니다.
       this.sections = LANGUAGE_CODES.reduce((acc, code) => {
         acc[code] = [];
         return acc;
@@ -1228,12 +1270,12 @@ document.addEventListener("DOMContentLoaded", () => {
       this.setupTextInputListeners();
     }
 
-    // Recalculate which language containers should be visible.
+    // 어떤 언어 컨테이너를 표시할지 다시 계산합니다.
     handleLanguageChange() {
       this.toggleLanguageSections();
     }
 
-    // Add a new subtitle block, optionally directly after an existing block.
+    // 새 자막 블록을 추가합니다. 필요하면 기존 블록 바로 뒤에 넣습니다.
     addInputSection(langClass, referenceSectionWrapper = null) {
       document.getElementById("output").style.display = "none";
 
@@ -1266,12 +1308,12 @@ document.addEventListener("DOMContentLoaded", () => {
       updateBookmarks();
     }
 
-    // Resolve the DOM container that belongs to a SAMI class code.
+    // SAMI 클래스 코드에 해당하는 DOM 컨테이너를 찾습니다.
     getContainerByLangClass(c) {
       return document.getElementById(LANG[c].container);
     }
 
-    // Mirror the DOM insertion in the internal ordered section list.
+    // DOM에 삽입한 순서를 내부 섹션 목록에도 반영합니다.
     addSectionToList(c, s, r) {
       let arr;
 
@@ -1290,7 +1332,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
 
-    // Build one visual subtitle section: number, timed lines, end time, controls.
+    // 번호, 시간별 줄, 종료 시간, 컨트롤을 포함한 자막 섹션 하나를 만듭니다.
     createInputSection(c) {
       const wrapper = document.createElement("div");
       wrapper.className = "section-wrapper";
@@ -1325,7 +1367,7 @@ document.addEventListener("DOMContentLoaded", () => {
       return wrapper;
     }
 
-    // Insert one start-time/text row before the end-time row.
+    // 종료 시간 행 앞에 시작 시간/텍스트 행 하나를 삽입합니다.
     addInputGroup(sec, ref = null) {
       const grp = this.createInputGroup();
       if (ref) sec.insertBefore(grp, ref.nextSibling);
@@ -1333,7 +1375,7 @@ document.addEventListener("DOMContentLoaded", () => {
       this.adjustInputWidth(grp.querySelector(".text"));
     }
 
-    // Create a single editable subtitle row with remove/add controls.
+    // 추가/삭제 컨트롤이 있는 편집 가능한 자막 행 하나를 만듭니다.
     createInputGroup() {
       const g = document.createElement("div");
       g.className = "input-group";
@@ -1362,7 +1404,7 @@ document.addEventListener("DOMContentLoaded", () => {
       return g;
     }
 
-    // End time closes the section by emitting a blank SAMI cue.
+    // 종료 시간은 빈 SAMI 큐를 출력해 해당 섹션을 닫습니다.
     createLastTimeInputGroup() {
       const l = document.createElement("div");
       l.className = "last-time-input";
@@ -1370,7 +1412,7 @@ document.addEventListener("DOMContentLoaded", () => {
       return l;
     }
 
-    // Add-section control shown below each subtitle block.
+    // 각 자막 블록 아래에 표시되는 섹션 추가 컨트롤입니다.
     createSectionControls(c, w) {
       const d = document.createElement("div");
       d.className = "section-controls";
@@ -1394,7 +1436,7 @@ document.addEventListener("DOMContentLoaded", () => {
       return d;
     }
 
-    // Remove a row; if it was the last row, remove the whole section.
+    // 행을 삭제합니다. 마지막 행이었다면 섹션 전체를 삭제합니다.
     removeInputGroup(g) {
       const content = g.closest(".section-content");
       content.removeChild(g);
@@ -1403,7 +1445,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
 
-    // Remove a section from both the DOM and its internal ordering list.
+    // DOM과 내부 순서 목록에서 섹션을 함께 삭제합니다.
     removeInputSection(s) {
       const wrapper = s.closest(".section-wrapper");
       const container = wrapper.closest(".section-container");
@@ -1425,7 +1467,7 @@ document.addEventListener("DOMContentLoaded", () => {
       this.updateSectionNumbers(code);
     }
 
-    // Re-number visible sections after insertions or deletions.
+    // 섹션 추가나 삭제 후 보이는 섹션 번호를 다시 매깁니다.
     updateSectionNumbers(c) {
       this.getContainerByLangClass(c)
         .querySelectorAll(".input-section")
@@ -1435,7 +1477,7 @@ document.addEventListener("DOMContentLoaded", () => {
         );
     }
 
-    // Accept mm:ss.mmm-style separators and normalize to milliseconds.
+    // mm:ss.mmm 계열 구분자를 받아 밀리초 단위로 정규화합니다.
     convertTimeToMilliseconds(t) {
       if (!t) return null;
       const m = t
@@ -1448,13 +1490,13 @@ document.addEventListener("DOMContentLoaded", () => {
       return minutes * 60000 + seconds * 1000 + milli;
     }
 
-    // Lightweight validation before attempting full time conversion.
+    // 전체 시간 변환을 시도하기 전 가볍게 형식을 검증합니다.
     validateTimeFormat(t) {
       return /^[0-9]+[.:,;][0-5]?[0-9][.:,;][0-9]{1,4}$/.test(t.trim());
     }
 
-    // Validate visible fields, generate SAMI markup, update preview cues,
-    // and enable download once the output is fresh.
+    // 보이는 입력값을 검증하고, SAMI 마크업을 생성하고, 미리보기 큐를 갱신하며,
+    // 출력이 최신 상태가 되면 다운로드를 활성화합니다.
     generateSubtitles(skipValidation = false) {
       if (!skipValidation) {
         const invalid = [];
@@ -1573,7 +1615,7 @@ ${styleLines}
       }
     }
 
-    // Convert one editor section into its sequence of SAMI <SYNC> cues.
+    // 편집 섹션 하나를 SAMI <SYNC> 큐들의 순서로 변환합니다.
     generateSubtitleForSection(s) {
       let out = "";
       const content = s.querySelector(".section-content");
@@ -1623,7 +1665,7 @@ ${styleLines}
       return out;
     }
 
-    // Download the generated SAMI text as a .smi file named after the title.
+    // 생성된 SAMI 텍스트를 제목 기반 이름의 .smi 파일로 다운로드합니다.
     downloadSAMIFile() {
       const a = Object.assign(document.createElement("a"), {
         href: URL.createObjectURL(
@@ -1635,7 +1677,7 @@ ${styleLines}
       URL.revokeObjectURL(a.href);
     }
 
-    // Copy section timing structure from one language into another language.
+    // 한 언어의 섹션 시간 구조를 다른 언어로 복사합니다.
     duplicateSectionsToTarget(src, dest) {
       const srcContainer = this.getContainerByLangClass(src);
       const srcSecs = Array.from(
@@ -1691,7 +1733,7 @@ ${styleLines}
       updateBookmarks();
     }
 
-    // Show active language containers and clear inactive language contents.
+    // 활성 언어 컨테이너를 표시하고 비활성 언어 내용은 비웁니다.
     toggleLanguageSections() {
       LANGUAGES.forEach(({ key }) => {
         const code = codeMap[key];
@@ -1722,7 +1764,7 @@ ${styleLines}
         });
     }
 
-    // Remove all generated editor sections for a language.
+    // 특정 언어에 생성된 모든 편집 섹션을 삭제합니다.
     resetSections(langKey) {
       const code = Object.keys(LANG).find((k) => LANG[k].key === langKey);
       if (!code) return;
@@ -1732,12 +1774,12 @@ ${styleLines}
       }
     }
 
-    // Return the language key associated with a SAMI class code.
+    // SAMI 클래스 코드에 연결된 언어 키를 반환합니다.
     getLangValue(c) {
       return LANG[c].key;
     }
 
-    // Shared input listeners keep sizing, generated output, and validation in sync.
+    // 공통 입력 리스너가 크기, 생성 출력, 검증 상태를 동기화합니다.
     setupTextInputListeners() {
       document.body.addEventListener("input", (e) => {
         if (e.target.classList.contains("text"))
@@ -1814,7 +1856,7 @@ ${styleLines}
         });
     }
 
-    // Match every text input in a section to the widest line in that section.
+    // 섹션 안의 모든 텍스트 입력칸 너비를 가장 긴 줄에 맞춥니다.
     adjustInputWidth(changed) {
       const sec = changed.closest(".input-section");
       const texts = sec.querySelectorAll(".text");
@@ -1833,17 +1875,17 @@ ${styleLines}
       texts.forEach((t) => (t.style.width = `${max}px`));
     }
 
-    // Grow the output textarea to fit generated SAMI content.
+    // 생성된 SAMI 내용에 맞춰 출력 textarea 높이를 늘립니다.
     adjustOutputHeight() {
       this.output.style.height = "auto";
       this.output.style.height = this.output.scrollHeight + "px";
     }
   }
 
-  // Create the editor controller after all static DOM references are available.
+  // 정적 DOM 참조가 모두 준비된 뒤 편집 컨트롤러를 생성합니다.
   const subtitleGenerator = new SubtitleGenerator();
 
-  // Manual edits to generated output should keep the textarea height usable.
+  // 생성 출력물을 직접 수정해도 textarea 높이가 사용하기 좋게 유지되도록 합니다.
   document
     .getElementById("output")
     .addEventListener("input", function () {
@@ -1851,10 +1893,10 @@ ${styleLines}
       this.style.height = this.scrollHeight + "px";
     });
 
-  // Language buttons cycle through hidden, active, and ready/editable states.
+  // 언어 버튼은 숨김, 활성, ready/편집 가능 상태를 오갑니다.
   const langButtons = document.querySelectorAll(".lang-btn");
 
-  // Toggle whether a language's section exposes detailed line controls.
+  // 해당 언어 섹션에서 줄별 세부 컨트롤을 보여줄지 전환합니다.
   function setSectionEditability(lang, editable) {
     const code = codeMap[lang];
     document
@@ -1864,13 +1906,13 @@ ${styleLines}
       );
   }
 
-  // Helper for event targets inside a language button.
+  // 언어 버튼 내부 이벤트 대상을 다루기 위한 도우미입니다.
   function closestLangBtn(el) {
     return el ? el.closest(".lang-btn") : null;
   }
 
-  // Wire each visible language button: activate, mark ready, open color picker,
-  // remove language, or drag timing structure to another active language.
+  // 보이는 각 언어 버튼에 활성화, ready 표시, 색상 선택기 열기,
+  // 언어 제거, 다른 활성 언어로 시간 구조 드래그 기능을 연결합니다.
   langButtons.forEach((btn) => {
     btn.addEventListener(
       "pointerdown",
@@ -1981,7 +2023,7 @@ ${styleLines}
     });
   });
 
-  // On first load, only initially active languages are visible.
+  // 처음 로드할 때는 초기 활성 언어만 표시합니다.
   Object.keys(codeMap).forEach((lang) => {
     const toggleBtn = document.querySelector(
       `.lang-btn[data-target="${lang}"]`
@@ -1994,7 +2036,7 @@ ${styleLines}
       .forEach((el) => (el.style.display = isActive ? "flex" : "none"));
   });
 
-  // Language picker modal is populated from the rendered language buttons.
+  // 렌더링된 언어 버튼을 바탕으로 언어 선택 모달을 채웁니다.
   const modal = document.getElementById("languageModal");
   const modalScroll = modal.querySelector(".lang-modal-scroll");
 
@@ -2027,7 +2069,7 @@ ${styleLines}
     });
   });
 
-  // Hide the add button once every available language is already active.
+  // 사용 가능한 모든 언어가 이미 활성화되면 추가 버튼을 숨깁니다.
   function updateAddLanguageButton() {
     const totalLangs = selectBtns.length;
     const activeLangs =
@@ -2039,7 +2081,7 @@ ${styleLines}
 
   updateAddLanguageButton();
 
-  // Open/close the language picker and hide already-active choices.
+  // 언어 선택기를 열고 닫으며 이미 활성화된 선택지는 숨깁니다.
   addLangBtn.addEventListener("click", function () {
     this.classList.toggle("active");
 
@@ -2119,7 +2161,7 @@ ${styleLines}
       .forEach((btn) => btn.classList.remove("covered"));
   });
 
-  // The toggle backdrop prevents clicks on covered language buttons behind the modal.
+  // 토글 배경은 모달 뒤에 가려진 언어 버튼이 클릭되는 것을 막습니다.
   const toggleBackdrop = (() => {
     const el = document.createElement("div");
     el.id = "toggleBackdrop";
@@ -2133,7 +2175,7 @@ ${styleLines}
     closeLangModal();
   });
 
-  // Size the backdrop to cover active language buttons while the picker is open.
+  // 선택기가 열려 있는 동안 활성 언어 버튼을 덮도록 배경 크기를 맞춥니다.
   function updateToggleBackdrop() {
     const toggle = document.querySelector(".language-toggle");
     const activeBtns = toggle.querySelectorAll(".lang-btn.active");
@@ -2167,7 +2209,7 @@ ${styleLines}
     }
   });
 
-  // Selecting a language activates its toggle and inserts its editor container.
+  // 언어를 선택하면 해당 토글을 활성화하고 편집 컨테이너를 삽입합니다.
   selectBtns.forEach((btn) => {
     btn.addEventListener("click", () => {
       const lang = btn.dataset.target;
@@ -2200,7 +2242,7 @@ ${styleLines}
     });
   });
 
-  // Toolbar fullscreen button wraps browser-specific fullscreen APIs.
+  // 툴바의 전체화면 버튼은 브라우저별 전체화면 API를 감쌉니다.
   fullscreenBtn.addEventListener("click", () => {
     const player = document.getElementById("player-container");
     if (!document.fullscreenElement) {
@@ -2218,14 +2260,14 @@ ${styleLines}
     }
   });
 
-  // Toolbar caption button toggles the live SAMI overlay.
+  // 툴바의 자막 버튼은 실시간 SAMI 오버레이를 켜고 끕니다.
   captionBtn.addEventListener("click", () => {
     captionsEnabled = !captionsEnabled;
     samiOverlay.style.display = captionsEnabled ? "block" : "none";
     captionBtn.classList.toggle("active", captionsEnabled);
   });
 
-  // Draggable divider state for resizing the media panel.
+  // 미디어 패널 크기를 바꾸는 드래그 분할선 상태입니다.
   const videoPanel = document.querySelector(".video-panel");
   const mainContent = document.querySelector(".main-content");
   let isDragging = false;
@@ -2246,7 +2288,7 @@ ${styleLines}
     isDragging = false;
   });
 
-  // Resize the media panel and recalculate every dependent overlay/canvas.
+  // 미디어 패널 크기를 바꾸고 관련 오버레이와 캔버스를 다시 계산합니다.
   document.addEventListener("mousemove", (e) => {
     if (!isDragging) return;
 
@@ -2343,13 +2385,12 @@ ${styleLines}
       let cssX = relX * (visW - phW);
 
       cssX = Math.max(0, Math.min(visW - phW, cssX));
-      playheadDiv.style.left = cssX + "px";
-      waveformPlayheadDiv.style.left = cssX + "px";
+      setPlayheadPositions(cssX);
 
     }
   });
 
-  // Visual feedback while dragging timing structure between languages.
+  // 언어 사이에서 시간 구조를 드래그할 때 보여주는 시각 피드백입니다.
   langButtons.forEach((btn) => {
     btn.addEventListener("dragover", (e) => e.preventDefault());
 
@@ -2373,12 +2414,12 @@ ${styleLines}
     );
   });
 
-  // Current source and target state for language drag/drop.
+  // 언어 드래그 앤 드롭의 현재 출발/대상 상태입니다.
   let draggingLang = null;
   let dragSourceBtn = null;
   let currentTarget = null;
 
-  // Clear validation highlights as soon as the user interacts with a field.
+  // 사용자가 입력칸과 상호작용하는 즉시 검증 강조를 지웁니다.
   document.addEventListener(
     "pointerdown",
     (e) => clearInputError(e.target),
@@ -2403,7 +2444,7 @@ ${styleLines}
 
   subtitleGenerator.toggleLanguageSections();
 
-  // Keep editor section order aligned with the visible language button order.
+  // 편집 섹션 순서를 화면에 보이는 언어 버튼 순서와 맞춥니다.
   function reorderSectionContainers() {
     const parent = document.querySelector(".main-content .container");
     const outputEl = document.getElementById("output");
@@ -2423,7 +2464,7 @@ ${styleLines}
 
   const scrollEl = document.querySelector(".lang-modal-scroll");
 
-  // Delegated click handler also covers cloned items used for infinite scroll.
+  // 위임 클릭 핸들러는 무한 스크롤용 복제 항목까지 함께 처리합니다.
   scrollEl.addEventListener("click", (e) => {
     const btn = e.target.closest(".lang-select-btn");
     if (!btn || btn.disabled) return;
@@ -2456,7 +2497,7 @@ ${styleLines}
       .forEach((b) => b.classList.remove("covered"));
   });
 
-  // Clone language choices before and after the list to fake circular scrolling.
+  // 원형 스크롤처럼 보이도록 언어 선택지를 목록 앞뒤에 복제합니다.
   const items = Array.from(scrollEl.querySelectorAll(".lang-select-btn"));
   items.forEach((item) => scrollEl.appendChild(item.cloneNode(true)));
   items
@@ -2466,13 +2507,13 @@ ${styleLines}
       scrollEl.insertBefore(item.cloneNode(true), scrollEl.firstChild)
     );
 
-  // Start the circular scroller in the middle copy of the list.
+  // 원형 스크롤러를 목록의 가운데 복제 구간에서 시작합니다.
   function resetScroll() {
     scrollEl.scrollTop = scrollEl.scrollHeight / 3;
   }
   resetScroll();
 
-  // Jump scroll position between cloned thirds to keep the loop seamless.
+  // 복제된 세 구간 사이로 스크롤 위치를 이동해 반복이 끊기지 않게 합니다.
   scrollEl.addEventListener("scroll", () => {
     const third = scrollEl.scrollHeight / 3;
     if (scrollEl.scrollTop < 50) {
@@ -2482,7 +2523,7 @@ ${styleLines}
     }
   });
 
-  // Wheel events over the modal drive the custom scroll speed.
+  // 모달 위 휠 이벤트로 커스텀 스크롤 속도를 제어합니다.
   document.addEventListener(
     "wheel",
     function (e) {
@@ -2501,7 +2542,7 @@ ${styleLines}
     { passive: false }
   );
 
-  // Restore the normal language bar state after closing the picker.
+  // 선택기를 닫은 뒤 언어 바를 정상 상태로 되돌립니다.
   function closeLangModal() {
     modal.classList.add("hidden");
     modalBackdrop.classList.add("hidden");
@@ -2520,7 +2561,7 @@ ${styleLines}
     if (scrollEl) scrollEl.style.display = "none";
   }
 
-  // Lazy-load Pickr and expose a small helper used by ready language buttons.
+  // Pickr를 지연 로드하고 ready 언어 버튼에서 쓰는 작은 도우미를 노출합니다.
   (function () {
     const overlay = document.createElement("div");
     Object.assign(overlay.style, {
@@ -2544,7 +2585,7 @@ ${styleLines}
     document.head.appendChild(script);
 
     let pickr;
-    // Configure the color picker for a simple hex-like text color workflow.
+    // 단순한 헥스 색상 기반 텍스트 색상 흐름에 맞게 색상 선택기를 설정합니다.
     function initPickr() {
       pickr = Pickr.create({
         el: "#color-btn",
@@ -2567,7 +2608,7 @@ ${styleLines}
         },
       });
 
-      // Ready buttons show the selected highlight color as a left-side stripe.
+      // ready 버튼은 선택된 강조 색상을 왼쪽 줄무늬로 보여줍니다.
       function updateReadyGradient(color) {
         document.querySelectorAll(".lang-btn.ready").forEach((btn) => {
           btn.style.backgroundImage = `linear-gradient(to right, ${color} 20%, transparent 20%)`;
@@ -2661,11 +2702,11 @@ ${styleLines}
     };
   })();
 
-  // Scroll bookmarks show where each visible language section begins.
+  // 스크롤 북마크는 각 표시 언어 섹션이 시작되는 위치를 보여줍니다.
   const bmContainer = document.getElementById("container");
   const scrollContainer = document.querySelector(".main-content");
 
-  // Rebuild bookmark dots from the current scroll height and visible sections.
+  // 현재 스크롤 높이와 표시 섹션을 바탕으로 북마크 점을 다시 만듭니다.
   function updateBookmarks() {
     bmContainer.innerHTML = "";
     const totalH = scrollContainer.scrollHeight;
@@ -2722,7 +2763,7 @@ ${styleLines}
     });
   });
 
-  // Ensure language visibility changes also refresh the bookmark rail.
+  // 언어 표시 상태가 바뀔 때 북마크 영역도 함께 갱신되도록 합니다.
   subtitleGenerator.toggleLanguageSections = (function (orig) {
     return function () {
       orig.apply(this, arguments);
@@ -2730,7 +2771,7 @@ ${styleLines}
     };
   })(subtitleGenerator.toggleLanguageSections);
 
-  // Draw the currently visible audio segment as a simple amplitude waveform.
+  // 현재 보이는 오디오 구간을 단순 진폭 파형으로 그립니다.
   function drawWaveform() {
     if (!audioBuffer) {
       canvasCtx.clearRect(
@@ -2774,7 +2815,7 @@ ${styleLines}
     }
   }
 
-  // Animate waveform panning and DOM playhead position while media plays.
+  // 미디어 재생 중 파형 이동과 DOM 재생 위치를 애니메이션으로 갱신합니다.
   function updatePlayhead() {
     if (video.paused || isSeeking) {
       cancelAnimationFrame(playheadReqId);
@@ -2837,17 +2878,16 @@ ${styleLines}
     let cssX = xPos * scaleFactor;
 
     cssX = Math.max(0, Math.min(timelineW - phW, cssX));
-    playheadDiv.style.left = cssX + "px";
-    waveformPlayheadDiv.style.left = cssX + "px";
+    setPlayheadPositions(cssX);
 
 
     playheadReqId = requestAnimationFrame(updatePlayhead);
   }
 
-  // Short playback blips let the browser refresh video frames during precise seeking.
+  // 정밀 탐색 중 아주 짧은 재생으로 브라우저가 비디오 프레임을 갱신하게 합니다.
   let singleFrameTimeout;
 
-  // Clicking the waveform seeks immediately and previews a tiny frame slice.
+  // 파형을 클릭하면 즉시 이동하고 아주 짧은 프레임 구간을 미리 봅니다.
   waveformCanvas.addEventListener("mousedown", (e) => {
     if (!audioBuffer) return;
     isSeeking = true;
@@ -2863,7 +2903,7 @@ ${styleLines}
     }, 10);
   });
 
-  // Dragging outside the waveform auto-scrolls the zoomed segment.
+  // 파형 바깥으로 드래그하면 확대된 구간을 자동 스크롤합니다.
   window.addEventListener("mousemove", (e) => {
     if (!isSeeking) return;
 
@@ -2926,7 +2966,7 @@ ${styleLines}
     }
   });
 
-  // Translate a waveform x-coordinate into sample offset and media currentTime.
+  // 파형의 x좌표를 샘플 위치와 미디어 currentTime으로 변환합니다.
   function seekOnCanvas(event) {
     const rect = waveformCanvas.getBoundingClientRect();
     const totalSamples = audioBuffer.length;
@@ -2959,25 +2999,24 @@ ${styleLines}
     let cssX = relX * (visW - phW);
 
     cssX = Math.max(0, Math.min(visW - phW, cssX));
-    playheadDiv.style.left = cssX + "px";
-    waveformPlayheadDiv.style.left = cssX + "px";
-
-
     const newTime = (targetSample / totalSamples) * video.duration;
+    setPlayheadPositions(cssX, newTime);
+
     video.currentTime = newTime;
     drawTimeline();
     updateTimeDisplay();
   }
 
-  // Mouse wheel zooms the waveform around the current playhead position.
+  // 마우스 휠은 현재 재생 위치를 중심으로 파형을 확대/축소합니다.
   waveformCanvas.addEventListener("wheel", (e) => {
     if (!audioBuffer) return;
     e.preventDefault();
 
     const totalSamples = audioBuffer.length;
-    const width = timelineContainer.clientWidth;
+    const width = waveformContainer.clientWidth;
 
-    const playheadStyleLeft = parseFloat(playheadDiv.style.left) || 0;
+    const playheadStyleLeft =
+      parseFloat(waveformPlayheadDiv.style.left) || 0;
     const headRatio = playheadStyleLeft / width;
 
     const zoomFactor = 1.2;
@@ -3003,10 +3042,12 @@ ${styleLines}
     if (!video.paused) {
       cancelAnimationFrame(playheadReqId);
       updatePlayhead();
+    } else {
+      syncPlayheadsToCurrentWaveformView();
     }
   });
 
-  // Time fields can be dragged between inputs to quickly copy exact timestamps.
+  // 시간 입력칸끼리 드래그해서 정확한 타임스탬프를 빠르게 복사할 수 있습니다.
   document.body.addEventListener("dragstart", (e) => {
     if (!e.target.matches(".time, .last-time, #time-display")) return;
     e.dataTransfer.setData("text/plain", e.target.value);
@@ -3030,6 +3071,7 @@ ${styleLines}
       const text = e.dataTransfer.getData("text/plain");
       e.target.value = text;
       e.target.focus();
+      e.target.dispatchEvent(new Event("input", { bubbles: true }));
     }
   });
 });

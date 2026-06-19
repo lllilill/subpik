@@ -489,15 +489,6 @@ document.addEventListener("DOMContentLoaded", () => {
         output.removeAttribute("style");
       }
 
-      if (!nowVisible) {
-        document
-          .querySelectorAll(".language-toggle .lang-btn.ready")
-          .forEach((btn) => {
-            btn.style.animation = "none";
-            btn.style.backgroundSize = "100% 100%";
-          });
-      }
-
       const container = document.querySelector(
         ".main-content .container"
       );
@@ -1990,6 +1981,7 @@ ${styleLines}
     const currentBackground = getComputedStyle(btn).backgroundImage;
     let fallbackTimer;
 
+    btn.style.removeProperty("animation");
     btn.style.backgroundImage = currentBackground;
     btn.style.backgroundSize = "100% 100%";
     btn.classList.remove("ready");
@@ -2040,9 +2032,11 @@ ${styleLines}
     if (!btn || !btn.classList.contains("active")) return;
 
     const lang = btn.dataset.target;
-    btn.classList.remove("ready", "active");
+    btn.classList.remove("ready", "tracking-exit", "active");
     btn.style.display = "none";
     btn.style.backgroundImage = "";
+    btn.style.removeProperty("animation");
+    btn.style.removeProperty("background-size");
 
     setAddButtonsReady(lang, false);
     setSectionEditability(lang, false);
@@ -2117,6 +2111,8 @@ ${styleLines}
         setAddButtonsReady(btn.dataset.target, false);
         setSectionEditability(btn.dataset.target, false);
       } else if (!isReady) {
+        btn.style.removeProperty("animation");
+        btn.style.removeProperty("background-size");
         btn.classList.add("ready");
 
         delete btn.dataset.pickrColor;

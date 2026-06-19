@@ -1570,12 +1570,6 @@ body.modal-open * {
 }
 
 
-  background-color: rgba(255, 0, 0, 0.8);
-  pointer-events: none;
-  display: none;
-  z-index: 3;
-}
-
 /* 비디오 하단 가까이에 배치되는 실시간 자막 미리보기 오버레이입니다. */
 #samiOverlay {
   position: absolute;

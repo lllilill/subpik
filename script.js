@@ -369,7 +369,8 @@ document.addEventListener("DOMContentLoaded", () => {
   // 복사나 정렬 목적의 언어 드래그 상호작용이 끝난 뒤 상태를 초기화합니다.
   function resetDragState() {
     if (dragSourceBtn) dragSourceBtn.style.opacity = "";
-    setDropHighlight(null);
+    clearLanguageDropFeedback();
+    languageDropIntent = null;
     draggingLang = null;
     dragSourceBtn = null;
   }
@@ -972,7 +973,24 @@ document.addEventListener("DOMContentLoaded", () => {
   // 렌더링되는 각 비디오 프레임마다 활성 클래스별 최신 큐를 선택합니다.
   function renderSamiOverlay(t = video.currentTime) {
     const lines = [];
-    const classes = [...new Set(samiCues.map((c) => c.cls))];
+    const cueClasses = [...new Set(samiCues.map((c) => c.cls))];
+    const cueClassSet = new Set(cueClasses);
+    const workspaceClasses = Array.from(
+      document.querySelectorAll(
+        "#sectionContainers > .section-container:not(.hidden)"
+      )
+    )
+      .map((container) =>
+        Object.keys(LANG).find(
+          (code) => LANG[code].container === container.id
+        )
+      )
+      .filter((code) => code && cueClassSet.has(code));
+    const workspaceClassSet = new Set(workspaceClasses);
+    const classes = workspaceClasses.concat(
+      cueClasses.filter((code) => !workspaceClassSet.has(code))
+    );
+
     classes.forEach((cls) => {
       let lastCue = null;
       samiCues
@@ -1065,7 +1083,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // 시간 표시를 클릭하면 정확한 시간을 복사하거나 드래그할 수 있도록 일시정지합니다.
   timeDisplay.addEventListener("click", (e) => {
-    e.preventDefault();
     e.stopPropagation();
     if (!timeDisplay.disabled && video.src) {
       video.pause();
@@ -1076,20 +1093,32 @@ document.addEventListener("DOMContentLoaded", () => {
   timeDisplay.addEventListener("blur", () => {
     if (timeDisplay.disabled || !video.src) return;
 
-    const t =
-      subtitleGenerator.convertTimeToMilliseconds(timeDisplay.value) /
-      1000;
+    const timeMs = subtitleGenerator.convertTimeToMilliseconds(
+      timeDisplay.value
+    );
 
-    if (t != null && !isNaN(video.duration)) {
-      video.currentTime = Math.min(t, video.duration);
+    if (timeMs !== null && Number.isFinite(video.duration)) {
+      const targetTime = Math.max(
+        0,
+        Math.min(timeMs / 1000, video.duration)
+      );
+      const currentDisplayMs = Math.floor(video.currentTime * 1000);
+      const targetDisplayMs = Math.floor(targetTime * 1000);
+
+      clearTimeout(scrubTimeout);
+      video.pause();
+
+      if (targetDisplayMs !== currentDisplayMs) {
+        video.currentTime = targetTime;
+      }
 
       drawTimeline();
-      updatePlayhead();
-      video.play();
-      clearTimeout(scrubTimeout);
-      scrubTimeout = setTimeout(() => {
-        video.pause();
-      }, 100);
+      if (audioBuffer) {
+        syncPlayheadsToCurrentWaveformView(targetTime);
+      } else {
+        setPlayheadPositions(0, targetTime);
+      }
+      renderSamiOverlay(targetTime);
       updateTimeDisplay();
     } else {
       timeDisplay.value = formatTime(video.currentTime);
@@ -1933,6 +1962,9 @@ ${styleLines}
 
   // 언어 버튼은 숨김, 활성, ready/편집 가능 상태를 오갑니다.
   const langButtons = document.querySelectorAll(".lang-btn");
+  let draggingLang = null;
+  let dragSourceBtn = null;
+  let languageDropIntent = null;
 
   // 해당 언어 섹션에서 줄별 세부 컨트롤을 보여줄지 전환합니다.
   function setSectionEditability(lang, editable) {
@@ -2032,33 +2064,9 @@ ${styleLines}
       dragSourceBtn = btn;
       btn.style.opacity = 0.6;
       e.dataTransfer.setData("text/plain", draggingLang);
+      e.dataTransfer.effectAllowed = "copyMove";
     });
     btn.addEventListener("dragend", resetDragState);
-    btn.addEventListener("dragenter", (e) =>
-      setDropHighlight(e.currentTarget)
-    );
-    btn.addEventListener("dragleave", () => setDropHighlight(null));
-    btn.addEventListener("dragover", (e) => e.preventDefault());
-    btn.addEventListener("drop", (e) => {
-      e.preventDefault();
-      const targetLang = btn.dataset.target;
-      const srcLang = e.dataTransfer.getData("text/plain");
-      if (srcLang && srcLang !== targetLang) {
-        const srcBtn = document.querySelector(
-          `.lang-btn[data-target="${srcLang}"]`
-        );
-        if (
-          srcBtn.classList.contains("active") &&
-          btn.classList.contains("active")
-        ) {
-          subtitleGenerator.duplicateSectionsToTarget(
-            codeMap[srcLang],
-            codeMap[targetLang]
-          );
-        }
-      }
-      resetDragState();
-    });
   });
 
   // 처음 로드할 때는 초기 활성 언어만 표시합니다.
@@ -2429,33 +2437,131 @@ ${styleLines}
   });
 
   // 언어 사이에서 시간 구조를 드래그할 때 보여주는 시각 피드백입니다.
-  langButtons.forEach((btn) => {
-    btn.addEventListener("dragover", (e) => e.preventDefault());
-
-    btn.addEventListener("dragenter", (e) => {
-      const src = dragSourceBtn;
-      if (
-        src &&
-        btn !== src &&
-        src.classList.contains("active") &&
-        btn.classList.contains("active")
-      ) {
-        btn.classList.add("drop-target");
-      }
-    });
-
-    btn.addEventListener("dragleave", (e) =>
-      btn.classList.remove("drop-target")
-    );
-    btn.addEventListener("drop", (e) =>
-      btn.classList.remove("drop-target")
-    );
-  });
+  const languageToggle = document.querySelector(".language-toggle");
+  const languageDropIndicator = document.createElement("div");
+  languageDropIndicator.className = "language-drop-indicator";
+  languageDropIndicator.hidden = true;
+  languageToggle.appendChild(languageDropIndicator);
 
   // 언어 드래그 앤 드롭의 현재 출발/대상 상태입니다.
-  let draggingLang = null;
-  let dragSourceBtn = null;
-  let currentTarget = null;
+  function getVisibleLanguageButtons() {
+    return Array.from(languageToggle.querySelectorAll(":scope > .lang-btn")).filter(
+      (btn) =>
+        btn.classList.contains("active") &&
+        window.getComputedStyle(btn).display !== "none"
+    );
+  }
+
+  function clearLanguageDropFeedback() {
+    languageToggle
+      .querySelectorAll(".lang-btn.drop-target")
+      .forEach((btn) => btn.classList.remove("drop-target"));
+    languageDropIndicator.hidden = true;
+  }
+
+  function showLanguageDropIndicator(beforeBtn) {
+    const toggleRect = languageToggle.getBoundingClientRect();
+    const visibleButtons = getVisibleLanguageButtons().filter(
+      (btn) => btn !== dragSourceBtn
+    );
+    let indicatorY;
+
+    if (beforeBtn) {
+      indicatorY = beforeBtn.getBoundingClientRect().top - toggleRect.top - 4;
+    } else {
+      const lastBtn = visibleButtons[visibleButtons.length - 1];
+      const anchor = lastBtn || document.getElementById("addLanguageButton");
+      indicatorY = anchor.getBoundingClientRect().bottom - toggleRect.top + 4;
+    }
+
+    languageDropIndicator.style.top = `${indicatorY}px`;
+    languageDropIndicator.hidden = false;
+  }
+
+  function updateLanguageDropIntent(e) {
+    if (!dragSourceBtn || !dragSourceBtn.classList.contains("active")) {
+      languageDropIntent = null;
+      clearLanguageDropFeedback();
+      return;
+    }
+
+    const targetBtn = closestLangBtn(e.target);
+    if (
+      targetBtn &&
+      targetBtn !== dragSourceBtn &&
+      targetBtn.classList.contains("active")
+    ) {
+      languageDropIntent = { type: "copy", targetBtn };
+      clearLanguageDropFeedback();
+      targetBtn.classList.add("drop-target");
+      e.dataTransfer.dropEffect = "copy";
+      return;
+    }
+
+    if (targetBtn === dragSourceBtn) {
+      languageDropIntent = null;
+      clearLanguageDropFeedback();
+      return;
+    }
+
+    const otherButtons = getVisibleLanguageButtons().filter(
+      (btn) => btn !== dragSourceBtn
+    );
+    const beforeBtn =
+      otherButtons.find((btn) => {
+        const rect = btn.getBoundingClientRect();
+        return e.clientY < rect.top + rect.height / 2;
+      }) || null;
+
+    languageDropIntent = { type: "reorder", beforeBtn };
+    clearLanguageDropFeedback();
+    showLanguageDropIndicator(beforeBtn);
+    e.dataTransfer.dropEffect = "move";
+  }
+
+  languageToggle.addEventListener("dragover", (e) => {
+    if (!dragSourceBtn) return;
+    e.preventDefault();
+    updateLanguageDropIntent(e);
+  });
+
+  languageToggle.addEventListener("dragleave", (e) => {
+    if (!languageToggle.contains(e.relatedTarget)) {
+      languageDropIntent = null;
+      clearLanguageDropFeedback();
+    }
+  });
+
+  languageToggle.addEventListener("drop", (e) => {
+    if (!dragSourceBtn || !languageDropIntent) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (languageDropIntent.type === "copy") {
+      const targetBtn = languageDropIntent.targetBtn;
+      const targetLang = targetBtn.dataset.target;
+      const srcLang = e.dataTransfer.getData("text/plain") || draggingLang;
+
+      if (srcLang && srcLang !== targetLang) {
+        subtitleGenerator.duplicateSectionsToTarget(
+          codeMap[srcLang],
+          codeMap[targetLang]
+        );
+      }
+    } else {
+      const addBtn = document.getElementById("addLanguageButton");
+      languageToggle.insertBefore(
+        dragSourceBtn,
+        languageDropIntent.beforeBtn || addBtn
+      );
+      reorderSectionContainers();
+      updateBookmarks();
+      renderSamiOverlay(video.currentTime);
+    }
+
+    resetDragState();
+  });
 
   // 사용자가 입력칸과 상호작용하는 즉시 검증 강조를 지웁니다.
   document.addEventListener(
@@ -2484,17 +2590,21 @@ ${styleLines}
 
   // 편집 섹션 순서를 화면에 보이는 언어 버튼 순서와 맞춥니다.
   function reorderSectionContainers() {
-    const parent = document.querySelector(".main-content .container");
-    const outputEl = document.getElementById("output");
+    const parent = document.getElementById("sectionContainers");
 
     document
       .querySelectorAll(".language-toggle .lang-btn")
       .forEach((btn) => {
-        if (btn.style.display !== "flex") return;
+        if (
+          !btn.classList.contains("active") ||
+          window.getComputedStyle(btn).display === "none"
+        ) {
+          return;
+        }
         const section = document.getElementById(
           `${btn.dataset.target}Container`
         );
-        if (section) parent.insertBefore(section, outputEl);
+        if (section) parent.appendChild(section);
       });
   }
 

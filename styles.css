@@ -372,6 +372,24 @@ button:disabled:hover {
   transition: box-shadow 0.15s, transform 0.15s;
 }
 
+/* 언어 버튼 사이에 놓을 때 자막 작업 영역이 삽입될 위치를 표시합니다. */
+.language-drop-indicator {
+  position: absolute;
+  left: -4px;
+  width: 88px;
+  height: 3px;
+  border-radius: 999px;
+  background: #2196f3;
+  box-shadow: 0 0 7px rgba(33, 150, 243, 0.9);
+  pointer-events: none;
+  z-index: 1120;
+  transform: translateY(-50%);
+}
+
+.language-drop-indicator[hidden] {
+  display: none;
+}
+
 /* 활성 언어 버튼은 언어 바에 표시됩니다. */
 .lang-btn.active {
   background: var(--btn-color);

@@ -390,6 +390,11 @@ button:disabled:hover {
   display: none;
 }
 
+/* 목록 밖 삭제 영역에서는 원래 위치의 언어 버튼만 붉게 강조합니다. */
+.lang-btn.language-drag-source.language-remove-target {
+  box-shadow: 0 0 0 3px #ef5350, 0 0 9px rgba(239, 83, 80, 0.85);
+}
+
 /* 활성 언어 버튼은 언어 바에 표시됩니다. */
 .lang-btn.active {
   background: var(--btn-color);
@@ -428,6 +433,12 @@ button:disabled:hover {
   border-style: solid;
   border-color: transparent transparent transparent #333;
   z-index: 9998;
+}
+
+/* Tracking 꼬리표는 실제 언어 버튼의 클릭·드롭 영역에 포함하지 않습니다. */
+.lang-btn.ready::before,
+.lang-btn.ready::after {
+  pointer-events: none;
 }
 
 /* 이전 마크업을 위해 남겨둔 다운로드 버튼 선택자입니다. */
@@ -1088,6 +1099,21 @@ button,
 
 .language-toggle .lang-btn.ready {
   animation: slideFill 0.3s forwards ease-out;
+}
+
+/* Tracking 해제 시 강조 줄무늬를 등장 모션의 반대 방향으로 걷어냅니다. */
+@keyframes slideUnfill {
+  from {
+    background-size: 100% 100%;
+  }
+  to {
+    background-size: 0% 100%;
+  }
+}
+
+.language-toggle .lang-btn.tracking-exit {
+  background-repeat: no-repeat;
+  animation: slideUnfill 0.3s forwards ease-in;
 }
 
 /* 검증 오류를 보여주는 중앙 팝업 오버레이입니다. */

@@ -368,7 +368,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // 복사나 정렬 목적의 언어 드래그 상호작용이 끝난 뒤 상태를 초기화합니다.
   function resetDragState() {
-    if (dragSourceBtn) dragSourceBtn.style.opacity = "";
+    if (dragSourceBtn) {
+      dragSourceBtn.style.opacity = "";
+      dragSourceBtn.classList.remove(
+        "language-drag-source",
+        "language-remove-target"
+      );
+    }
     clearLanguageDropFeedback();
     languageDropIntent = null;
     draggingLang = null;
@@ -1976,13 +1982,145 @@ ${styleLines}
       );
   }
 
+  function collapseTrackingInputGroups(lang) {
+    const code = codeMap[lang];
+
+    document
+      .querySelectorAll(`.input-section[data-lang-class="${code}"]`)
+      .forEach((section) => {
+        const groups = Array.from(section.querySelectorAll(".input-group"));
+        groups.slice(1).forEach((group) => group.remove());
+
+        const firstText = groups[0]?.querySelector(".text");
+        if (firstText) subtitleGenerator.adjustInputWidth(firstText);
+      });
+  }
+
+  function refreshLanguagePreviewCues(lang) {
+    const code = codeMap[lang];
+    const container = subtitleGenerator.getContainerByLangClass(code);
+    const nextCues = samiCues.filter((cue) => cue.cls !== code);
+
+    container.querySelectorAll(".input-section").forEach((section) => {
+      const firstGroup = section.querySelector(".input-group");
+      const startInput = firstGroup?.querySelector(".time");
+      const textInput = firstGroup?.querySelector(".text");
+      const startMs = subtitleGenerator.convertTimeToMilliseconds(
+        startInput?.value || ""
+      );
+
+      if (startMs !== null && textInput?.value) {
+        nextCues.push({
+          start: startMs / 1000,
+          html: textInput.value.replace(/\|/g, "<br>"),
+          cls: code,
+        });
+      }
+
+      const endInput = section.querySelector(".last-time");
+      const endMs = subtitleGenerator.convertTimeToMilliseconds(
+        endInput?.value || ""
+      );
+      if (endMs !== null) {
+        nextCues.push({
+          start: Math.max(0, endMs - 1) / 1000,
+          html: "",
+          cls: code,
+        });
+      }
+    });
+
+    samiCues = nextCues.sort((a, b) => a.start - b.start);
+    renderSamiOverlay(video.currentTime);
+  }
+
   // 언어 버튼 내부 이벤트 대상을 다루기 위한 도우미입니다.
+  // Tracking 강조색을 바로 지우지 않고 등장 모션의 반대 방향으로 사라지게 합니다.
+  function playTrackingExit(btn) {
+    const currentBackground = getComputedStyle(btn).backgroundImage;
+    let fallbackTimer;
+
+    btn.style.backgroundImage = currentBackground;
+    btn.style.backgroundSize = "100% 100%";
+    btn.classList.remove("ready");
+    btn.classList.add("tracking-exit");
+
+    const finish = () => {
+      if (!btn.classList.contains("tracking-exit")) return;
+
+      btn.classList.remove("tracking-exit");
+      btn.style.backgroundImage = "";
+      btn.style.backgroundSize = "";
+      clearTimeout(fallbackTimer);
+    };
+
+    btn.addEventListener(
+      "animationend",
+      (event) => {
+        if (event.animationName === "slideUnfill") finish();
+      },
+      { once: true }
+    );
+
+    // 애니메이션 이벤트가 생략되는 환경에서도 임시 상태를 정리합니다.
+    fallbackTimer = setTimeout(finish, 400);
+  }
+
   function closestLangBtn(el) {
     return el ? el.closest(".lang-btn") : null;
   }
 
-  // 보이는 각 언어 버튼에 활성화, ready 표시, 색상 선택기 열기,
-  // 언어 제거, 다른 활성 언어로 시간 구조 드래그 기능을 연결합니다.
+  function isPointInsideRect(x, y, rect) {
+    return (
+      x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom
+    );
+  }
+
+  function getLangBtnAtPoint(el, x, y) {
+    const btn = closestLangBtn(el);
+    if (!btn) return null;
+    return isPointInsideRect(x, y, btn.getBoundingClientRect()) ? btn : null;
+  }
+
+  function isPointInsideLanguageToggle(x, y) {
+    return isPointInsideRect(x, y, languageToggle.getBoundingClientRect());
+  }
+
+  function removeLanguageButton(btn) {
+    if (!btn || !btn.classList.contains("active")) return;
+
+    const lang = btn.dataset.target;
+    const code = codeMap[lang];
+
+    btn.classList.remove("ready", "active");
+    btn.style.display = "none";
+    btn.style.backgroundImage = "";
+
+    setAddButtonsReady(lang, false);
+    setSectionEditability(lang, false);
+    subtitleGenerator.resetSections(lang);
+    subtitleGenerator.toggleLanguageSections();
+    reorderSectionContainers();
+
+    samiCues = samiCues.filter((cue) => cue.cls !== code);
+    renderSamiOverlay(video.currentTime);
+    updateBookmarks();
+    updateAddLanguageButton();
+
+    document.getElementById("output").style.display = "none";
+    const downloadBtn = document.getElementById("download-btn");
+    downloadBtn.disabled = true;
+    downloadBtn.style.display = "inline-block";
+
+    const clickBtn = document.querySelector(".click-anim-container");
+    if (clickBtn) {
+      clickBtn.setAttribute("data-state", "0");
+      window.clickAnimState = 0;
+    }
+  }
+
+  // 보이는 각 언어 버튼에 활성화, Tracking 전환, 색상 선택기 열기,
+  // 시간 구조 복사와 목록 밖 드롭 제거 기능을 연결합니다.
   langButtons.forEach((btn) => {
     btn.addEventListener(
       "pointerdown",
@@ -2007,6 +2145,8 @@ ${styleLines}
         return;
       }
 
+      if (this.classList.contains("tracking-exit")) return;
+
       document.getElementById("output").style.display = "none";
       const dl = document.getElementById("download-btn");
       dl.disabled = true;
@@ -2023,15 +2163,13 @@ ${styleLines}
 
           showCenterPopup();
         } else {
-          btn.classList.remove("ready", "active");
           const lang = btn.dataset.target;
+          playTrackingExit(btn);
+          collapseTrackingInputGroups(lang);
           setAddButtonsReady(lang, false);
           setSectionEditability(lang, false);
-          subtitleGenerator.resetSections(lang);
-          btn.style.display = "none";
-          subtitleGenerator.handleLanguageChange();
-          subtitleGenerator.toggleLanguageSections();
-          updateAddLanguageButton();
+          refreshLanguagePreviewCues(lang);
+          updateBookmarks();
         }
         return;
       }
@@ -2063,7 +2201,9 @@ ${styleLines}
       draggingLang = btn.dataset.target;
       dragSourceBtn = btn;
       btn.style.opacity = 0.6;
+      btn.classList.add("language-drag-source");
       e.dataTransfer.setData("text/plain", draggingLang);
+      e.dataTransfer.setData("application/x-subpik-language", draggingLang);
       e.dataTransfer.effectAllowed = "copyMove";
     });
     btn.addEventListener("dragend", resetDragState);
@@ -2457,6 +2597,9 @@ ${styleLines}
       .querySelectorAll(".lang-btn.drop-target")
       .forEach((btn) => btn.classList.remove("drop-target"));
     languageDropIndicator.hidden = true;
+    if (dragSourceBtn) {
+      dragSourceBtn.classList.remove("language-remove-target");
+    }
   }
 
   function showLanguageDropIndicator(beforeBtn) {
@@ -2485,7 +2628,7 @@ ${styleLines}
       return;
     }
 
-    const targetBtn = closestLangBtn(e.target);
+    const targetBtn = getLangBtnAtPoint(e.target, e.clientX, e.clientY);
     if (
       targetBtn &&
       targetBtn !== dragSourceBtn &&
@@ -2531,6 +2674,44 @@ ${styleLines}
       clearLanguageDropFeedback();
     }
   });
+
+  document.addEventListener(
+    "dragover",
+    (e) => {
+      if (
+        !dragSourceBtn ||
+        isPointInsideLanguageToggle(e.clientX, e.clientY)
+      ) {
+        return;
+      }
+
+      e.preventDefault();
+      e.stopPropagation();
+      languageDropIntent = { type: "remove" };
+      clearLanguageDropFeedback();
+      dragSourceBtn.classList.add("language-remove-target");
+      e.dataTransfer.dropEffect = "move";
+    },
+    true
+  );
+
+  document.addEventListener(
+    "drop",
+    (e) => {
+      if (
+        !dragSourceBtn ||
+        isPointInsideLanguageToggle(e.clientX, e.clientY)
+      ) {
+        return;
+      }
+
+      e.preventDefault();
+      e.stopPropagation();
+      removeLanguageButton(dragSourceBtn);
+      resetDragState();
+    },
+    true
+  );
 
   languageToggle.addEventListener("drop", (e) => {
     if (!dragSourceBtn || !languageDropIntent) return;

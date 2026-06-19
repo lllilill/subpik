@@ -248,10 +248,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // 생성된 SAMI 출력에서 파싱한 실시간 자막 미리보기용 큐입니다.
   let samiCues = [];
+  let previewLanguageOrder = [];
 
   // 생성된 SAMI 텍스트가 바뀔 때마다 미리보기 큐를 다시 만듭니다.
   function updateSamiCues() {
     const sami = document.getElementById("output").value;
+    previewLanguageOrder = Array.from(
+      document.querySelectorAll(".language-toggle .lang-btn.active")
+    )
+      .map((btn) => codeMap[btn.dataset.target])
+      .filter(Boolean);
     samiCues = [];
     if (!sami) {
       renderSamiOverlay(video.currentTime);
@@ -411,6 +417,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // 이 애니메이션 버튼은 SAMI 출력을 생성하고 출력 화면 표시도 전환합니다.
   const clickBtn = document.querySelector(".click-anim-container");
+
+  // 작업영역 변경은 생성 결과를 건드리지 않고 생성 버튼만 미완료 상태로 되돌립니다.
+  function markWorkspaceDirty() {
+    const output = document.getElementById("output");
+    if (output) output.style.display = "none";
+
+    const downloadBtn = document.getElementById("download-btn");
+    if (downloadBtn) downloadBtn.disabled = true;
+
+    if (clickBtn) {
+      clickBtn.setAttribute("data-state", "0");
+      window.clickAnimState = 0;
+    }
+
+    document.querySelector(".main-content")?.classList.remove("minimal");
+  }
 
   let clickToggle = false;
 
@@ -981,20 +1003,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const lines = [];
     const cueClasses = [...new Set(samiCues.map((c) => c.cls))];
     const cueClassSet = new Set(cueClasses);
-    const workspaceClasses = Array.from(
-      document.querySelectorAll(
-        "#sectionContainers > .section-container:not(.hidden)"
-      )
-    )
-      .map((container) =>
-        Object.keys(LANG).find(
-          (code) => LANG[code].container === container.id
-        )
-      )
-      .filter((code) => code && cueClassSet.has(code));
-    const workspaceClassSet = new Set(workspaceClasses);
-    const classes = workspaceClasses.concat(
-      cueClasses.filter((code) => !workspaceClassSet.has(code))
+    const generatedClasses = previewLanguageOrder.filter((code) =>
+      cueClassSet.has(code)
+    );
+    const generatedClassSet = new Set(generatedClasses);
+    const classes = generatedClasses.concat(
+      cueClasses.filter((code) => !generatedClassSet.has(code))
     );
 
     classes.forEach((cls) => {
@@ -1868,7 +1882,7 @@ ${styleLines}
           inp.value =
             inp.value.slice(0, start) + "|" + inp.value.slice(end);
           inp.setSelectionRange(start + 1, start + 1);
-          this.adjustInputWidth(inp);
+          inp.dispatchEvent(new Event("input", { bubbles: true }));
         }
       });
 
@@ -1879,54 +1893,28 @@ ${styleLines}
           e.target.id === "titleText" ||
           e.target.closest(".input-section")
         ) {
-          document.getElementById("output").style.display = "none";
-          document.getElementById("download-btn").disabled = true;
-
-          const clickBtn = document.querySelector(
-            ".click-anim-container"
-          );
-          if (clickBtn) {
-            clickBtn.setAttribute("data-state", "0");
-            window.clickAnimState = 0;
-          }
+          markWorkspaceDirty();
         }
       });
-
-      const disableDownloadAndResetClick = () => {
-        const dl = document.getElementById("download-btn");
-        if (dl) dl.disabled = true;
-
-        const clickCont = document.querySelector(".click-anim-container");
-        if (clickCont) {
-          clickCont.setAttribute("data-state", "0");
-          window.clickAnimState = 0;
-        }
-      };
 
       document.body.addEventListener("click", (e) => {
         const btn = e.target.closest(
           ".lang-btn, .lang-select-btn, .add-section-btn, .add-btn, .remove-btn"
         );
+
+        if (
+          btn?.classList.contains("lang-btn") &&
+          btn.classList.contains("ready")
+        ) {
+          const rect = btn.getBoundingClientRect();
+          const clickRatio = (e.clientX - rect.left) / rect.width;
+          if (clickRatio <= 0.2) return;
+        }
+
         if (btn) {
-          disableDownloadAndResetClick();
+          markWorkspaceDirty();
         }
       });
-
-      document
-        .querySelectorAll(
-          '.lang-btn, .lang-select-btn, [id^="add"][id$="SectionButton"], .add-btn, .remove-btn'
-        )
-        .forEach((btn) => {
-          btn.addEventListener("click", disableDownloadAndResetClick);
-        });
-
-      document
-        .querySelectorAll(".section-content input")
-        .forEach((inp) => {
-          inp.addEventListener("input", () => {
-            subtitleGenerator.generateSubtitles(true);
-          });
-        });
     }
 
     // 섹션 안의 모든 텍스트 입력칸 너비를 가장 긴 줄에 맞춥니다.
@@ -1996,44 +1984,6 @@ ${styleLines}
       });
   }
 
-  function refreshLanguagePreviewCues(lang) {
-    const code = codeMap[lang];
-    const container = subtitleGenerator.getContainerByLangClass(code);
-    const nextCues = samiCues.filter((cue) => cue.cls !== code);
-
-    container.querySelectorAll(".input-section").forEach((section) => {
-      const firstGroup = section.querySelector(".input-group");
-      const startInput = firstGroup?.querySelector(".time");
-      const textInput = firstGroup?.querySelector(".text");
-      const startMs = subtitleGenerator.convertTimeToMilliseconds(
-        startInput?.value || ""
-      );
-
-      if (startMs !== null && textInput?.value) {
-        nextCues.push({
-          start: startMs / 1000,
-          html: textInput.value.replace(/\|/g, "<br>"),
-          cls: code,
-        });
-      }
-
-      const endInput = section.querySelector(".last-time");
-      const endMs = subtitleGenerator.convertTimeToMilliseconds(
-        endInput?.value || ""
-      );
-      if (endMs !== null) {
-        nextCues.push({
-          start: Math.max(0, endMs - 1) / 1000,
-          html: "",
-          cls: code,
-        });
-      }
-    });
-
-    samiCues = nextCues.sort((a, b) => a.start - b.start);
-    renderSamiOverlay(video.currentTime);
-  }
-
   // 언어 버튼 내부 이벤트 대상을 다루기 위한 도우미입니다.
   // Tracking 강조색을 바로 지우지 않고 등장 모션의 반대 방향으로 사라지게 합니다.
   function playTrackingExit(btn) {
@@ -2090,8 +2040,6 @@ ${styleLines}
     if (!btn || !btn.classList.contains("active")) return;
 
     const lang = btn.dataset.target;
-    const code = codeMap[lang];
-
     btn.classList.remove("ready", "active");
     btn.style.display = "none";
     btn.style.backgroundImage = "";
@@ -2102,21 +2050,9 @@ ${styleLines}
     subtitleGenerator.toggleLanguageSections();
     reorderSectionContainers();
 
-    samiCues = samiCues.filter((cue) => cue.cls !== code);
-    renderSamiOverlay(video.currentTime);
     updateBookmarks();
     updateAddLanguageButton();
-
-    document.getElementById("output").style.display = "none";
-    const downloadBtn = document.getElementById("download-btn");
-    downloadBtn.disabled = true;
-    downloadBtn.style.display = "inline-block";
-
-    const clickBtn = document.querySelector(".click-anim-container");
-    if (clickBtn) {
-      clickBtn.setAttribute("data-state", "0");
-      window.clickAnimState = 0;
-    }
+    markWorkspaceDirty();
   }
 
   // 보이는 각 언어 버튼에 활성화, Tracking 전환, 색상 선택기 열기,
@@ -2168,7 +2104,6 @@ ${styleLines}
           collapseTrackingInputGroups(lang);
           setAddButtonsReady(lang, false);
           setSectionEditability(lang, false);
-          refreshLanguagePreviewCues(lang);
           updateBookmarks();
         }
         return;
@@ -2729,6 +2664,7 @@ ${styleLines}
           codeMap[srcLang],
           codeMap[targetLang]
         );
+        markWorkspaceDirty();
       }
     } else {
       const addBtn = document.getElementById("addLanguageButton");
@@ -2738,7 +2674,7 @@ ${styleLines}
       );
       reorderSectionContainers();
       updateBookmarks();
-      renderSamiOverlay(video.currentTime);
+      markWorkspaceDirty();
     }
 
     resetDragState();
@@ -2953,6 +2889,7 @@ ${styleLines}
         pickrTargetBtn.style.backgroundImage = `linear-gradient(to right, ${hex} 20%, transparent 20%)`;
 
         pickrTargetBtn.dataset.pickrColor = hex;
+        markWorkspaceDirty();
       });
 
       pickr.on("show", () => {
@@ -2994,7 +2931,10 @@ ${styleLines}
         removeCloseListener = () => pickr.hide();
         pickrTargetBtn.addEventListener("click", removeCloseListener);
 
-        pickr.setColor(pickrTargetBtn.dataset.pickrColor || "#FFFF00");
+        pickr.setColor(
+          pickrTargetBtn.dataset.pickrColor || "#FFFF00",
+          true
+        );
       });
 
       pickr.on("hide", () => {

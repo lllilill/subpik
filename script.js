@@ -632,6 +632,44 @@ document.addEventListener("DOMContentLoaded", () => {
   const timeDisplay = document.getElementById("time-display");
   const copyBtn = document.getElementById("copy-btn");
 
+  const timeFieldSelector = ".time, .last-time, #time-display";
+  const sanitizeTimeCharacters = (value) =>
+    value.replace(/[^0-9.:,;]/g, "");
+
+  // Time fields accept only ASCII digits and supported time separators.
+  // Capture-phase sanitizing also covers paste, autofill, and IME input before
+  // the subtitle generation listeners read the field value.
+  document.addEventListener(
+    "beforeinput",
+    (e) => {
+      if (!e.target.matches(timeFieldSelector)) return;
+      if (typeof e.data === "string" && /[^0-9.:,;]/.test(e.data)) {
+        e.preventDefault();
+      }
+    },
+    true
+  );
+
+  document.addEventListener(
+    "input",
+    (e) => {
+      if (!e.target.matches(timeFieldSelector)) return;
+
+      const originalValue = e.target.value;
+      const sanitizedValue = sanitizeTimeCharacters(originalValue);
+      if (originalValue === sanitizedValue) return;
+
+      const cursor = e.target.selectionStart ?? originalValue.length;
+      const nextCursor = sanitizeTimeCharacters(
+        originalValue.slice(0, cursor)
+      ).length;
+
+      e.target.value = sanitizedValue;
+      e.target.setSelectionRange(nextCursor, nextCursor);
+    },
+    true
+  );
+
   const captionBtn = document.getElementById("caption-btn");
   const samiOverlay = document.getElementById("samiOverlay");
   let captionsEnabled = true;
@@ -1387,7 +1425,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
 
-<input type="text" class="time" placeholder="Start time" draggable="true">
+<input type="text" class="time" placeholder="Start time" pattern="[0-9.:,;]*" draggable="true">
 
 
 
@@ -1408,7 +1446,7 @@ document.addEventListener("DOMContentLoaded", () => {
     createLastTimeInputGroup() {
       const l = document.createElement("div");
       l.className = "last-time-input";
-      l.innerHTML = `<input type="text" class="last-time" placeholder="End time" draggable="true">`;
+      l.innerHTML = `<input type="text" class="last-time" placeholder="End time" pattern="[0-9.:,;]*" draggable="true">`;
       return l;
     }
 
@@ -3068,10 +3106,20 @@ ${styleLines}
   document.body.addEventListener("drop", (e) => {
     if (e.target.matches(".time, .last-time, #time-display")) {
       e.preventDefault();
-      const text = e.dataTransfer.getData("text/plain");
+      const text = sanitizeTimeCharacters(
+        e.dataTransfer.getData("text/plain")
+      );
       e.target.value = text;
-      e.target.focus();
-      e.target.dispatchEvent(new Event("input", { bubbles: true }));
+
+      if (e.target === timeDisplay) {
+        // Dropped timecodes are completed immediately: triggering blur applies
+        // the value to video.currentTime and leaves the field out of edit mode.
+        timeDisplay.focus({ preventScroll: true });
+        timeDisplay.blur();
+      } else {
+        e.target.focus();
+        e.target.dispatchEvent(new Event("input", { bubbles: true }));
+      }
     }
   });
 });

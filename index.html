@@ -145,7 +145,27 @@
       />
     </div>
     <!-- 미디어 재생 영역과 자막 편집 영역 사이의 드래그 가능한 분할선입니다. -->
-    <div id="divider"></div>
+    <div id="divider">
+      <span class="divider-hover-line" aria-hidden="true"></span>
+    </div>
+
+    <svg
+      class="divider-valley-shape"
+      viewBox="0 0 72 96"
+      preserveAspectRatio="none"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <circle class="divider-valley-circle" cx="36" cy="48" r="30" />
+      <path
+        class="divider-valley-arc"
+        d="M26 19.716A30 30 0 0 0 26 76.284"
+      />
+      <path
+        class="divider-valley-arc"
+        d="M46 19.716A30 30 0 0 1 46 76.284"
+      />
+    </svg>
 
     <!-- 커스텀 애니메이션 아이콘을 가진 생성/출력 전환 버튼입니다. -->
     <div class="click-anim-container" data-state="0">

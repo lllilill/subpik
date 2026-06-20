@@ -1906,7 +1906,13 @@ body.modal-open * {
   --accent-hover: #5794f8;
   --rail-width: 68px;
   --initial-media-width: min(44%, 1432px);
-  --transfer-control-size: 44px;
+  --divider-gutter-width: 72px;
+  --divider-gutter-half-width: 36px;
+  --divider-media-overlap: 26px;
+  --divider-channel-half-width: 10px;
+  --divider-channel-bg: #040b14;
+  --divider-hover-line: #3b82f6;
+  --transfer-control-size: 60px;
   --transfer-control-offset-x: 0px;
   --transfer-icon-scale: 0.72;
   --transfer-icon-hover-scale: 0.828;
@@ -2025,7 +2031,7 @@ body {
   width: var(--initial-media-width);
   height: 100vh;
   margin-left: var(--rail-width);
-  padding: 8px 24px;
+  padding: 8px 28px;
   background: var(--panel-bg);
   border-right: 0;
   overflow: hidden;
@@ -2174,34 +2180,109 @@ body {
 
 /* Right editing workspace */
 .main-content {
-  margin-left: calc(var(--rail-width) + var(--initial-media-width));
+  margin-left: calc(
+    var(--rail-width) + var(--initial-media-width) +
+      var(--divider-gutter-width) - var(--divider-media-overlap)
+  );
   background: var(--workspace-bg);
 }
 
-/* Keep the resize hit area wide while rendering a single quiet divider line. */
+/* A real, empty gutter separates the media panel from the editing workspace. */
 #divider {
-  left: calc(var(--rail-width) + var(--initial-media-width));
-  width: 26px;
-  margin-left: -10px;
-  background: transparent;
+  left: calc(
+    var(--rail-width) + var(--initial-media-width) -
+      var(--divider-media-overlap)
+  );
+  width: var(--divider-gutter-width);
+  margin-left: 0;
+  overflow: visible;
+  background: linear-gradient(
+    to right,
+    #0d1929 0,
+    #0d1929 calc(50% - var(--divider-channel-half-width)),
+    var(--divider-channel-bg) calc(50% - var(--divider-channel-half-width)),
+    var(--divider-channel-bg) calc(50% + var(--divider-channel-half-width)),
+    #081321 calc(50% + var(--divider-channel-half-width)),
+    #081321 100%
+  );
+}
+
+#divider::before,
+#divider::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  width: 1px;
+  height: 100%;
+  background: var(--line);
+  border: 0;
+  opacity: 0.8;
 }
 
 #divider::before {
-  left: 10px;
+  left: calc(50% - var(--divider-channel-half-width));
+}
+
+#divider::after {
+  right: calc(50% - var(--divider-channel-half-width));
+}
+
+.divider-valley-shape {
+  position: absolute;
+  top: 50%;
+  left: calc(
+    var(--rail-width) + var(--initial-media-width) -
+      var(--divider-media-overlap)
+  );
+  z-index: 2050;
+  display: block;
+  width: var(--divider-gutter-width);
+  height: 96px;
+  transform: translateY(-50%);
+  overflow: visible;
+  pointer-events: none;
+}
+
+.divider-valley-circle {
+  fill: var(--divider-channel-bg);
+  stroke: none;
+}
+
+.divider-valley-arc {
+  fill: none;
+  stroke: var(--line);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.divider-hover-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  z-index: 2;
   width: 1px;
-  background: var(--line);
-  border: 0;
-  opacity: 0.72;
-  transition: background-color 0.15s ease, opacity 0.15s ease;
+  transform: translateX(-50%);
+  pointer-events: none;
+  opacity: 0;
+  background: linear-gradient(
+    to bottom,
+    var(--divider-hover-line) 0,
+    var(--divider-hover-line) calc(50% - 36px),
+    transparent calc(50% - 36px),
+    transparent calc(50% + 36px),
+    var(--divider-hover-line) calc(50% + 36px),
+    var(--divider-hover-line) 100%
+  );
+  transition: opacity 0.15s ease;
 }
 
-#divider:hover::before,
-#divider.is-dragging::before {
-  background: #3b5573;
-  opacity: 1;
+#divider:hover .divider-hover-line,
+#divider.is-dragging .divider-hover-line {
+  opacity: 0.95;
 }
 
-/* Arrow control located at the red marker in the supplied reference. */
+/* The existing animated arrow floats in the gutter without a button shell. */
 .click-anim-container {
   position: absolute;
   flex: none;
@@ -2210,18 +2291,17 @@ body {
   height: var(--transfer-control-size);
   left: calc(
     var(--initial-media-width) + var(--rail-width) +
+      var(--divider-gutter-half-width) - var(--divider-media-overlap) +
       var(--transfer-control-offset-x)
   );
   top: 50%;
   transform: translate(-50%, -50%);
   z-index: 2100;
   color: #d3deec;
-  background: var(--surface-raised);
-  border: 1px solid var(--line-strong);
-  border-radius: 50%;
-  box-shadow: 0 4px 12px rgba(2, 8, 18, 0.28);
-  transition: background-color 0.15s ease, border-color 0.15s ease,
-    box-shadow 0.15s ease;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .click-anim-container .click-anim-inner {
@@ -2234,9 +2314,8 @@ body {
 }
 
 .click-anim-container:hover {
-  background: #15253a;
-  border-color: #405a77;
-  box-shadow: 0 6px 16px rgba(2, 8, 18, 0.34);
+  background: transparent;
+  box-shadow: none;
 }
 
 @media (max-height: 560px) {

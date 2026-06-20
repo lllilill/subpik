@@ -417,6 +417,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // 이 애니메이션 버튼은 SAMI 출력을 생성하고 출력 화면 표시도 전환합니다.
   const clickBtn = document.querySelector(".click-anim-container");
+  const dividerValleyShape = document.querySelector(
+    ".divider-valley-shape"
+  );
   const rootStyles = window.getComputedStyle(document.documentElement);
   const parsedTransferButtonOffsetX = parseFloat(
     rootStyles.getPropertyValue("--transfer-control-offset-x")
@@ -434,10 +437,23 @@ document.addEventListener("DOMContentLoaded", () => {
   )
     ? parsedTransferControlSize
     : 44;
+  const parsedDividerGutterWidth = parseFloat(
+    rootStyles.getPropertyValue("--divider-gutter-width")
+  );
+  const DIVIDER_GUTTER_WIDTH = Number.isFinite(parsedDividerGutterWidth)
+    ? parsedDividerGutterWidth
+    : 44;
+  const parsedDividerMediaOverlap = parseFloat(
+    rootStyles.getPropertyValue("--divider-media-overlap")
+  );
+  const DIVIDER_MEDIA_OVERLAP = Number.isFinite(parsedDividerMediaOverlap)
+    ? parsedDividerMediaOverlap
+    : 0;
   const TRANSFER_CONTROL_EDGE_GAP = 8;
   const MIN_TRANSFER_CONTROL_SAFETY_SPACE = 54;
   const TRANSFER_CONTROL_SAFETY_SPACE = Math.max(
     MIN_TRANSFER_CONTROL_SAFETY_SPACE,
+    DIVIDER_GUTTER_WIDTH + TRANSFER_CONTROL_EDGE_GAP,
     TRANSFER_BUTTON_OFFSET_X +
       TRANSFER_CONTROL_SIZE / 2 +
       TRANSFER_CONTROL_EDGE_GAP
@@ -566,10 +582,10 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     const divider = document.getElementById("divider");
-    const dividerMarginLeft =
-      parseFloat(window.getComputedStyle(divider).marginLeft) || 0;
     clickBtn.style.left = `${
-      divider.offsetLeft - dividerMarginLeft + TRANSFER_BUTTON_OFFSET_X
+      divider.offsetLeft +
+      divider.offsetWidth / 2 +
+      TRANSFER_BUTTON_OFFSET_X
     }px`;
   }
 
@@ -2415,6 +2431,7 @@ ${styleLines}
   const videoPanel = document.querySelector(".video-panel");
   const mainContent = document.querySelector(".main-content");
   let isDragging = false;
+  let dividerDragOffsetX = DIVIDER_GUTTER_WIDTH / 2;
   const MAX_MEDIA_PANEL_WIDTH = 1432;
   const COLLAPSED_MEDIA_THRESHOLD = 48;
 
@@ -2446,13 +2463,20 @@ ${styleLines}
       0,
       Math.min(currentMediaWidth + widthDelta, maxMediaWidth)
     );
-    const desiredDividerX = leftBarWidth + desiredMediaWidth;
+    const desiredMediaRightX = leftBarWidth + desiredMediaWidth;
+    const desiredDividerX =
+      desiredMediaRightX - DIVIDER_MEDIA_OVERLAP;
 
     videoPanel.style.width = `${desiredMediaWidth}px`;
-    mainContent.style.marginLeft = `${desiredDividerX}px`;
+    mainContent.style.marginLeft = `${
+      desiredDividerX + DIVIDER_GUTTER_WIDTH
+    }px`;
     divider.style.left = `${desiredDividerX}px`;
+    dividerValleyShape.style.left = `${desiredDividerX}px`;
     clickBtn.style.left = `${
-      desiredDividerX + TRANSFER_BUTTON_OFFSET_X
+      desiredDividerX +
+      DIVIDER_GUTTER_WIDTH / 2 +
+      TRANSFER_BUTTON_OFFSET_X
     }px`;
 
     requestAnimationFrame(() => {
@@ -2464,8 +2488,9 @@ ${styleLines}
 
   requestAnimationFrame(alignInitialDividerToTimeline);
 
-  divider.addEventListener("mousedown", () => {
+  divider.addEventListener("mousedown", (e) => {
     isDragging = true;
+    dividerDragOffsetX = e.clientX - divider.getBoundingClientRect().left;
     divider.classList.add("is-dragging");
   });
 
@@ -2485,7 +2510,10 @@ ${styleLines}
       ? leftBar.getBoundingClientRect().width
       : 0;
 
-    const minX = leftBarWidth;
+    const minX = Math.max(
+      0,
+      leftBarWidth - DIVIDER_MEDIA_OVERLAP
+    );
     const maxX = Math.max(
       minX,
       Math.min(
@@ -2493,18 +2521,28 @@ ${styleLines}
         leftBarWidth + MAX_MEDIA_PANEL_WIDTH
       )
     );
-    const desiredX = Math.max(minX, Math.min(e.clientX, maxX));
-    const desiredVideoWidth = desiredX - leftBarWidth;
+    const desiredX = Math.max(
+      minX,
+      Math.min(e.clientX - dividerDragOffsetX, maxX)
+    );
+    const desiredVideoWidth =
+      desiredX + DIVIDER_MEDIA_OVERLAP - leftBarWidth;
 
     videoPanel.style.width = desiredVideoWidth + "px";
     videoPanel.classList.toggle(
       "is-collapsed",
       desiredVideoWidth <= COLLAPSED_MEDIA_THRESHOLD
     );
-    mainContent.style.marginLeft = desiredX + "px";
+    mainContent.style.marginLeft =
+      desiredX + DIVIDER_GUTTER_WIDTH + "px";
     divider.style.left = desiredX + "px";
+    dividerValleyShape.style.left = desiredX + "px";
 
-    clickBtn.style.left = `${desiredX + TRANSFER_BUTTON_OFFSET_X}px`;
+    clickBtn.style.left = `${
+      desiredX +
+      DIVIDER_GUTTER_WIDTH / 2 +
+      TRANSFER_BUTTON_OFFSET_X
+    }px`;
 
     updateSubtitleScale();
     updateOutputBounds();

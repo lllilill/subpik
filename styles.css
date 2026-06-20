@@ -1934,6 +1934,7 @@ body {
   background: #091522;
   border-right: 1px solid #1d3045;
   box-shadow: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 #leftBar .app-logo {
@@ -1980,6 +1981,12 @@ body {
 #leftBar button:disabled {
   color: #607086 !important;
   opacity: 1 !important;
+}
+
+#leftBar #caption-btn:disabled,
+#leftBar #copy-btn:disabled {
+  background: transparent !important;
+  box-shadow: none;
 }
 
 #leftBar button:focus-visible {
@@ -2054,10 +2061,14 @@ body {
   padding: 0;
   gap: 8px;
   box-sizing: border-box;
+  opacity: 1;
+  visibility: visible;
   background: transparent;
   border: 0;
   border-radius: 0;
   overflow: hidden;
+  transition: opacity 0.22s ease, visibility 0s linear 0s;
+  will-change: opacity;
 }
 
 .video-panel #video-container {
@@ -2261,7 +2272,7 @@ body {
   bottom: 0;
   left: 50%;
   z-index: 2;
-  width: 1px;
+  width: 2px;
   transform: translateX(-50%);
   pointer-events: none;
   opacity: 0;
@@ -2277,9 +2288,25 @@ body {
   transition: opacity 0.15s ease;
 }
 
-#divider:hover .divider-hover-line,
-#divider.is-dragging .divider-hover-line {
+#divider:hover .divider-hover-line {
   opacity: 0.95;
+}
+
+body.divider-snap-ready #leftBar {
+  border-right-color: transparent;
+  box-shadow: inset -2px 0 0 var(--divider-hover-line);
+}
+
+body.divider-snap-ready #divider .divider-hover-line {
+  opacity: 1;
+}
+
+body.divider-snap-ready .video-panel #player-container,
+body.divider-is-snapping .video-panel #player-container {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.18s ease, visibility 0s linear 0.18s;
 }
 
 /* The existing animated arrow floats in the gutter without a button shell. */

@@ -348,11 +348,11 @@ document.addEventListener("DOMContentLoaded", () => {
     videoContainer.style.borderColor = "#6b7280";
   };
   const onDragLeave = () => {
-    videoContainer.style.borderColor = "#d1d5db";
+    videoContainer.style.borderColor = "";
   };
   const onDrop = (e) => {
     e.preventDefault();
-    videoContainer.style.borderColor = "#d1d5db";
+    videoContainer.style.borderColor = "";
 
     const file = e.dataTransfer.files[0];
     if (
@@ -970,17 +970,14 @@ document.addEventListener("DOMContentLoaded", () => {
     resizeTimelineCanvas();
     drawTimeline();
     videoContainer.style.borderColor = "transparent";
-    copyBtn.disabled = false;
-
     copyBtn.classList.add("active");
     timeDisplay.classList.remove("hidden");
 
-    captionBtn.disabled = false;
-
     captionBtn.classList.add("active");
+    captionsEnabled = true;
     samiOverlay.style.display = "block";
 
-    fullscreenBtn.disabled = false;
+    updateMediaToolbarAvailability();
 
     zoomLevel = 1;
     panOffset = 0;
@@ -1197,20 +1194,33 @@ document.addEventListener("DOMContentLoaded", () => {
       video.load();
       video.style.display = "none";
       placeholder.style.display = "block";
-      videoContainer.style.borderColor = "#d1d5db";
+      videoContainer.style.borderColor = "";
       timeDisplay.disabled = true;
+      timeDisplay.classList.add("hidden");
 
-      copyBtn.disabled = true;
-      fullscreenBtn.disabled = true;
+      copyBtn.classList.remove("active");
+      captionBtn.classList.remove("active");
+      captionsEnabled = false;
+      samiOverlay.style.display = "none";
+      updateMediaToolbarAvailability();
 
       timeDisplay.value = "00:00.000";
       timelineEnabled = false;
       timelineCanvas.style.display = "none";
+      const zoomHighlight = document.getElementById("zoomHighlight");
+      zoomHighlight.style.left = "0";
+      zoomHighlight.style.width = "0";
       drawTimeline();
 
       fileInput.value = "";
 
-      waveformContainer.style.visibility = "hidden";
+      audioBuffer = null;
+      maxZoom = undefined;
+      zoomLevel = 1;
+      panOffset = 0;
+      panOffsetTarget = 0;
+      waveformContainer.style.visibility = "visible";
+      resizeWaveformCanvas();
       playheadDiv.style.display = "none";
       waveformPlayheadDiv.style.display = "none";
 
@@ -2432,8 +2442,176 @@ ${styleLines}
   const mainContent = document.querySelector(".main-content");
   let isDragging = false;
   let dividerDragOffsetX = DIVIDER_GUTTER_WIDTH / 2;
+  let dividerSnapReady = false;
+  let isDividerSnapping = false;
+  let dividerSnapAnimationFrame = null;
+  let currentDividerX = divider.getBoundingClientRect().left;
+  let isMediaPanelClosed = false;
   const MAX_MEDIA_PANEL_WIDTH = 1432;
   const COLLAPSED_MEDIA_THRESHOLD = 48;
+  const DIVIDER_SNAP_DISTANCE = 320;
+  const DIVIDER_MAGNET_DISTANCE = DIVIDER_SNAP_DISTANCE;
+  const DIVIDER_MAGNET_PULL_STRENGTH = 0.65;
+  const DIVIDER_SNAP_DURATION = 220;
+
+  function getDividerBounds() {
+    const leftBar = document.getElementById("leftBar");
+    const leftBarWidth = leftBar
+      ? leftBar.getBoundingClientRect().width
+      : 0;
+    const minX = Math.max(
+      0,
+      leftBarWidth - DIVIDER_MEDIA_OVERLAP
+    );
+    const maxX = Math.max(
+      minX,
+      Math.min(
+        window.innerWidth - TRANSFER_CONTROL_SAFETY_SPACE,
+        leftBarWidth + MAX_MEDIA_PANEL_WIDTH
+      )
+    );
+
+    return { leftBarWidth, minX, maxX };
+  }
+
+  function updateMediaToolbarAvailability() {
+    const hasMedia = Boolean(video.getAttribute("src"));
+    const isUnavailable =
+      !hasMedia ||
+      isMediaPanelClosed ||
+      dividerSnapReady ||
+      isDividerSnapping;
+
+    fullscreenBtn.disabled = isUnavailable;
+    captionBtn.disabled = isUnavailable;
+    copyBtn.disabled = isUnavailable;
+  }
+
+  function updateMediaPanelClosedState(isClosed) {
+    if (isMediaPanelClosed === isClosed) return;
+    isMediaPanelClosed = isClosed;
+
+    if (isClosed) {
+      if (!video.paused) video.pause();
+    }
+
+    updateMediaToolbarAvailability();
+  }
+
+  function applyDividerPosition(dividerX) {
+    const { leftBarWidth, minX, maxX } = getDividerBounds();
+    const nextX = Math.max(minX, Math.min(dividerX, maxX));
+    const mediaWidth = Math.max(
+      0,
+      nextX + DIVIDER_MEDIA_OVERLAP - leftBarWidth
+    );
+
+    currentDividerX = nextX;
+    videoPanel.style.width = `${mediaWidth}px`;
+    videoPanel.classList.toggle(
+      "is-collapsed",
+      mediaWidth <= COLLAPSED_MEDIA_THRESHOLD
+    );
+    updateMediaPanelClosedState(mediaWidth <= 0.5);
+    mainContent.style.marginLeft = `${
+      nextX + DIVIDER_GUTTER_WIDTH
+    }px`;
+    divider.style.left = `${nextX}px`;
+    dividerValleyShape.style.left = `${nextX}px`;
+    clickBtn.style.left = `${
+      nextX +
+      DIVIDER_GUTTER_WIDTH / 2 +
+      TRANSFER_BUTTON_OFFSET_X
+    }px`;
+
+    return nextX;
+  }
+
+  function setDividerSnapReady(isReady) {
+    if (dividerSnapReady === isReady) return;
+    dividerSnapReady = isReady;
+    document.body.classList.toggle("divider-snap-ready", isReady);
+    updateMediaToolbarAvailability();
+  }
+
+  function cancelDividerSnapAnimation() {
+    if (dividerSnapAnimationFrame !== null) {
+      cancelAnimationFrame(dividerSnapAnimationFrame);
+      dividerSnapAnimationFrame = null;
+    }
+    isDividerSnapping = false;
+    document.body.classList.remove("divider-is-snapping");
+    updateMediaToolbarAvailability();
+  }
+
+  function finishDividerLayoutUpdate() {
+    updateSubtitleScale();
+    updateOutputBounds();
+    resizeWaveformCanvas();
+    resizeTimelineCanvas();
+    updateZoomHighlight();
+  }
+
+  function animateDividerTo(targetX) {
+    cancelDividerSnapAnimation();
+    setDividerSnapReady(false);
+
+    const startX = currentDividerX;
+    const distance = targetX - startX;
+    const reduceMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)"
+    ).matches;
+
+    if (reduceMotion || Math.abs(distance) < 0.5) {
+      applyDividerPosition(targetX);
+      finishDividerLayoutUpdate();
+      return;
+    }
+
+    const startTime = performance.now();
+    isDividerSnapping = true;
+    document.body.classList.add("divider-is-snapping");
+    updateMediaToolbarAvailability();
+
+    function step(now) {
+      const progress = Math.min(
+        1,
+        (now - startTime) / DIVIDER_SNAP_DURATION
+      );
+      const easedProgress = 1 - Math.pow(1 - progress, 4);
+
+      applyDividerPosition(startX + distance * easedProgress);
+      updateOutputBounds();
+
+      if (progress < 1) {
+        dividerSnapAnimationFrame = requestAnimationFrame(step);
+        return;
+      }
+
+      dividerSnapAnimationFrame = null;
+      isDividerSnapping = false;
+      document.body.classList.remove("divider-is-snapping");
+      applyDividerPosition(targetX);
+      updateMediaToolbarAvailability();
+      finishDividerLayoutUpdate();
+    }
+
+    dividerSnapAnimationFrame = requestAnimationFrame(step);
+  }
+
+  function getMagnetizedDividerX(rawX, minX, isSnapReady) {
+    if (!isSnapReady) return rawX;
+
+    const distance = rawX - minX;
+    if (distance <= 0) return minX;
+    if (distance >= DIVIDER_MAGNET_DISTANCE) return rawX;
+
+    const ratio = distance / DIVIDER_MAGNET_DISTANCE;
+    const pullRatio =
+      DIVIDER_MAGNET_PULL_STRENGTH * Math.pow(1 - ratio, 2);
+    const pulledDistance = distance * (1 - pullRatio);
+    return minX + pulledDistance;
+  }
 
   // 최초 화면에서는 재생바 중심이 화살표 중심과 같은 높이에 오도록
   // 재생바를 움직이지 않고 미디어 패널과 구분선의 가로 위치를 보정합니다.
@@ -2467,17 +2645,7 @@ ${styleLines}
     const desiredDividerX =
       desiredMediaRightX - DIVIDER_MEDIA_OVERLAP;
 
-    videoPanel.style.width = `${desiredMediaWidth}px`;
-    mainContent.style.marginLeft = `${
-      desiredDividerX + DIVIDER_GUTTER_WIDTH
-    }px`;
-    divider.style.left = `${desiredDividerX}px`;
-    dividerValleyShape.style.left = `${desiredDividerX}px`;
-    clickBtn.style.left = `${
-      desiredDividerX +
-      DIVIDER_GUTTER_WIDTH / 2 +
-      TRANSFER_BUTTON_OFFSET_X
-    }px`;
+    applyDividerPosition(desiredDividerX);
 
     requestAnimationFrame(() => {
       resizeTimelineCanvas();
@@ -2489,60 +2657,58 @@ ${styleLines}
   requestAnimationFrame(alignInitialDividerToTimeline);
 
   divider.addEventListener("mousedown", (e) => {
+    cancelDividerSnapAnimation();
+    setDividerSnapReady(false);
     isDragging = true;
     dividerDragOffsetX = e.clientX - divider.getBoundingClientRect().left;
     divider.classList.add("is-dragging");
   });
 
   document.addEventListener("mouseup", () => {
+    if (!isDragging) return;
+
     isDragging = false;
     divider.classList.remove("is-dragging");
+
+    if (dividerSnapReady) {
+      const { minX } = getDividerBounds();
+      animateDividerTo(minX);
+      return;
+    }
+
+    setDividerSnapReady(false);
+    finishDividerLayoutUpdate();
   });
 
   // 미디어 패널 크기를 바꾸고 관련 오버레이와 캔버스를 다시 계산합니다.
   document.addEventListener("mousemove", (e) => {
     if (!isDragging) return;
 
-    const containerWidth = window.innerWidth;
-
-    const leftBar = document.getElementById("leftBar");
-    const leftBarWidth = leftBar
-      ? leftBar.getBoundingClientRect().width
-      : 0;
-
-    const minX = Math.max(
-      0,
-      leftBarWidth - DIVIDER_MEDIA_OVERLAP
-    );
-    const maxX = Math.max(
-      minX,
-      Math.min(
-        containerWidth - TRANSFER_CONTROL_SAFETY_SPACE,
-        leftBarWidth + MAX_MEDIA_PANEL_WIDTH
-      )
-    );
-    const desiredX = Math.max(
+    const { minX, maxX } = getDividerBounds();
+    const rawX = Math.max(
       minX,
       Math.min(e.clientX - dividerDragOffsetX, maxX)
     );
-    const desiredVideoWidth =
-      desiredX + DIVIDER_MEDIA_OVERLAP - leftBarWidth;
+    const snapDistance = rawX - minX;
 
-    videoPanel.style.width = desiredVideoWidth + "px";
-    videoPanel.classList.toggle(
-      "is-collapsed",
-      desiredVideoWidth <= COLLAPSED_MEDIA_THRESHOLD
+    if (
+      !dividerSnapReady &&
+      snapDistance <= DIVIDER_SNAP_DISTANCE
+    ) {
+      setDividerSnapReady(true);
+    } else if (
+      dividerSnapReady &&
+      snapDistance > DIVIDER_SNAP_DISTANCE
+    ) {
+      setDividerSnapReady(false);
+    }
+
+    const desiredX = getMagnetizedDividerX(
+      rawX,
+      minX,
+      dividerSnapReady
     );
-    mainContent.style.marginLeft =
-      desiredX + DIVIDER_GUTTER_WIDTH + "px";
-    divider.style.left = desiredX + "px";
-    dividerValleyShape.style.left = desiredX + "px";
-
-    clickBtn.style.left = `${
-      desiredX +
-      DIVIDER_GUTTER_WIDTH / 2 +
-      TRANSFER_BUTTON_OFFSET_X
-    }px`;
+    applyDividerPosition(desiredX);
 
     updateSubtitleScale();
     updateOutputBounds();

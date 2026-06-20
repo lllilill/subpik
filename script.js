@@ -289,7 +289,12 @@ document.addEventListener("DOMContentLoaded", () => {
   // 현재 표시되는 비디오 크기에 맞춰 자막 오버레이 글자 크기를 비례 조정합니다.
   function updateSubtitleScale() {
     const overlay = document.getElementById("samiOverlay");
-    const currentWidth = videoContainer.clientWidth;
+    const fullscreenElement =
+      document.fullscreenElement || document.webkitFullscreenElement;
+    const currentWidth =
+      fullscreenElement === videoContainer.parentElement
+        ? video.getBoundingClientRect().width
+        : videoContainer.clientWidth;
     const intrinsicW = video.videoWidth || baselineWidth;
     const scale = currentWidth / intrinsicW;
 
@@ -1348,22 +1353,157 @@ document.addEventListener("DOMContentLoaded", () => {
 
   let controlTimeout;
   const player = document.getElementById("player-container");
+  const fullscreenFrameCanvas = document.createElement("canvas");
+  fullscreenFrameCanvas.id = "fullscreen-frame-canvas";
+  fullscreenFrameCanvas.setAttribute("aria-hidden", "true");
+  video.insertAdjacentElement("afterend", fullscreenFrameCanvas);
+  const fullscreenFrameContext = fullscreenFrameCanvas.getContext("2d", {
+    alpha: false,
+  });
+  let fullscreenFrameRequest = null;
+
+  function isPlayerFullscreen() {
+    const fullscreenElement =
+      document.fullscreenElement || document.webkitFullscreenElement;
+    return fullscreenElement === player;
+  }
+
+  function updateFullscreenMediaLayout() {
+    if (!isPlayerFullscreen() || !video.videoWidth || !video.videoHeight) return;
+
+    const stageWidth = player.clientWidth || window.innerWidth;
+    const stageHeight = player.clientHeight || window.innerHeight;
+    const mediaRatio = video.videoWidth / video.videoHeight;
+    let mediaWidth = stageWidth;
+    let mediaHeight = mediaWidth / mediaRatio;
+
+    if (mediaHeight > stageHeight) {
+      mediaHeight = stageHeight;
+      mediaWidth = mediaHeight * mediaRatio;
+    }
+
+    player.style.setProperty("--fullscreen-media-width", `${mediaWidth}px`);
+    player.style.setProperty("--fullscreen-media-height", `${mediaHeight}px`);
+  }
+
+  function clearFullscreenFrame() {
+    if (fullscreenFrameRequest !== null) {
+      cancelAnimationFrame(fullscreenFrameRequest);
+      fullscreenFrameRequest = null;
+    }
+    player.classList.remove("has-fullscreen-frame");
+  }
+
+  function captureFullscreenFrame() {
+    fullscreenFrameRequest = null;
+    if (
+      !isPlayerFullscreen() ||
+      !video.paused ||
+      video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA ||
+      !video.videoWidth ||
+      !video.videoHeight
+    ) {
+      player.classList.remove("has-fullscreen-frame");
+      return;
+    }
+
+    updateFullscreenMediaLayout();
+
+    // A paused video can lose its GPU overlay when the fullscreen timeline
+    // appears. Keep a copy of the current frame above that native layer.
+    const maxBackingSize = 2048;
+    const backingScale = Math.min(
+      1,
+      maxBackingSize / Math.max(video.videoWidth, video.videoHeight)
+    );
+    fullscreenFrameCanvas.width = Math.max(
+      1,
+      Math.round(video.videoWidth * backingScale)
+    );
+    fullscreenFrameCanvas.height = Math.max(
+      1,
+      Math.round(video.videoHeight * backingScale)
+    );
+
+    try {
+      fullscreenFrameContext.fillStyle = "#000";
+      fullscreenFrameContext.fillRect(
+        0,
+        0,
+        fullscreenFrameCanvas.width,
+        fullscreenFrameCanvas.height
+      );
+      fullscreenFrameContext.drawImage(
+        video,
+        0,
+        0,
+        fullscreenFrameCanvas.width,
+        fullscreenFrameCanvas.height
+      );
+      player.classList.add("has-fullscreen-frame");
+    } catch (error) {
+      player.classList.remove("has-fullscreen-frame");
+    }
+  }
+
+  function scheduleFullscreenFrameCapture() {
+    if (fullscreenFrameRequest !== null) {
+      cancelAnimationFrame(fullscreenFrameRequest);
+    }
+    fullscreenFrameRequest = requestAnimationFrame(captureFullscreenFrame);
+  }
+
+  video.addEventListener("play", clearFullscreenFrame);
+  video.addEventListener("pause", captureFullscreenFrame);
+  video.addEventListener("seeked", captureFullscreenFrame);
+  video.addEventListener("loadeddata", scheduleFullscreenFrameCapture);
+  video.addEventListener("emptied", clearFullscreenFrame);
+
+  window.addEventListener("resize", () => {
+    if (!isPlayerFullscreen()) return;
+    updateFullscreenMediaLayout();
+  });
 
   // 전체화면 진입/해제 시 보이는 컨트롤과 크기 조정 방식을 바꿉니다.
   function onFullScreenToggle() {
-    const isFS =
-      document.fullscreenElement === player ||
-      document.webkitFullscreenElement === player;
+    const isFS = isPlayerFullscreen();
+    player.classList.toggle("is-fullscreen-stage", isFS);
 
     if (isFS) {
+      updateFullscreenMediaLayout();
+      if (video.paused) captureFullscreenFrame();
       showControls();
       player.addEventListener("mousemove", showControls);
     } else {
+      clearFullscreenFrame();
+      player.style.removeProperty("--fullscreen-media-width");
+      player.style.removeProperty("--fullscreen-media-height");
       player.classList.remove("show-controls");
       player.removeEventListener("mousemove", showControls);
       clearTimeout(controlTimeout);
     }
-    updateSubtitleScale();
+
+    // Fullscreen viewport dimensions settle after the event. Re-measure the
+    // overlay canvases on the next two frames so portrait media keeps a stable
+    // stage while the controls fade in and out.
+    requestAnimationFrame(() => {
+      if (isFS) updateFullscreenMediaLayout();
+      resizeTimelineCanvas();
+      if (!isFS) resizeWaveformCanvas();
+      updateSubtitleScale();
+
+      requestAnimationFrame(() => {
+        if (isFS) {
+          updateFullscreenMediaLayout();
+          if (video.paused && !player.classList.contains("has-fullscreen-frame")) {
+            scheduleFullscreenFrameCapture();
+          }
+        }
+        resizeTimelineCanvas();
+        if (!isFS) resizeWaveformCanvas();
+        updateSubtitleScale();
+      });
+    });
   }
 
   ["fullscreenchange", "webkitfullscreenchange"].forEach((evt) =>

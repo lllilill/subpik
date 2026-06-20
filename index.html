@@ -26,49 +26,54 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@simonwep/pickr@1.8.2/dist/themes/classic.min.css"
     />
-    <!-- 레이아웃, 컨트롤, 애니메이션 상태를 담당하는 로컬 스타일시트입니다. -->
-    <link rel="stylesheet" href="styles.css" />
-
-    <!-- 왼쪽 위 애니메이션 로고를 표시하기 위한 웹 컴포넌트 런타임입니다. -->
+    <!-- 왼쪽 메뉴 상단의 기존 SUBPIK 애니메이션 로고입니다. -->
     <script
       type="module"
       src="https://unpkg.com/@lottiefiles/dotlottie-wc@latest/dist/dotlottie-wc.js"
     ></script>
+    <!-- 레이아웃, 컨트롤, 애니메이션 상태를 담당하는 로컬 스타일시트입니다. -->
+    <link rel="stylesheet" href="styles.css?v=20260620" />
 
   </head>
   <body>
-    <!-- 장식용 앱 로고입니다. 화면에 고정되고 클릭 이벤트를 받지 않습니다. -->
-    <dotlottie-wc
-      src="https://tistory1.daumcdn.net/tistory/7307299/skin/images/logo2.lottie"
-      autoplay
-      loop
-      style="
-        position: fixed;
-        top: 10px;
-        left: 9px;
-        z-index: 10000;
-        width: 32px;
-        height: 32px;
-        pointer-events: none;
-      "
-    ></dotlottie-wc>
-
     <!-- 왼쪽 툴바입니다. 미디어나 자막이 준비되면 버튼이 활성화됩니다. -->
     <div id="leftBar">
-      <button id="fullscreen-btn" disabled>
-        <span class="material-icons">fullscreen</span>
+      <dotlottie-wc
+        class="app-logo"
+        src="https://tistory1.daumcdn.net/tistory/7307299/skin/images/logo2.lottie"
+        autoplay
+        loop
+        aria-hidden="true"
+      ></dotlottie-wc>
+
+      <button id="fullscreen-btn" aria-label="화면" disabled>
+        <svg class="leftbar-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M5 10V5h5M14 5h5v5M19 14v5h-5M10 19H5v-5" />
+        </svg>
+        <span class="leftbar-label">화면</span>
       </button>
 
-      <button id="caption-btn" disabled>
-        <span class="material-icons">closed_caption</span>
+      <button id="caption-btn" aria-label="자막" disabled>
+        <svg class="leftbar-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="3" y="5" width="18" height="14" rx="2" />
+          <path d="M10 10H8.5a2 2 0 0 0 0 4H10M17 10h-1.5a2 2 0 0 0 0 4H17" />
+        </svg>
+        <span class="leftbar-label">자막</span>
       </button>
 
-      <button id="copy-btn" disabled>
-        <span class="material-icons">timer</span>
+      <button id="copy-btn" aria-label="타이밍" disabled>
+        <svg class="leftbar-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="13" r="7" />
+          <path d="M9 3h6M12 6V3M12 10v4l3 2" />
+        </svg>
+        <span class="leftbar-label">타이밍</span>
       </button>
 
-      <button id="download-btn" disabled>
-        <span class="material-icons">file_download</span>
+      <button id="download-btn" aria-label="내보내기" disabled>
+        <svg class="leftbar-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 4v10M8 11l4 4 4-4M5 19h14" />
+        </svg>
+        <span class="leftbar-label">내보내기</span>
       </button>
     </div>
 
@@ -87,7 +92,18 @@
         <!-- 이 영역을 클릭해 미디어 파일을 고르거나 파일을 끌어다 놓습니다. -->
         <div id="video-container">
           <video id="video" preload="metadata"></video>
-          <div id="video-placeholder">파일 추가</div>
+          <div id="video-placeholder">
+            <div class="media-upload-content">
+              <span class="media-upload-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <path d="M6 3h8l4 4v14H6zM14 3v5h5M12 17V10M9 13l3-3 3 3" />
+                </svg>
+              </span>
+              <strong>미디어 파일 추가</strong>
+              <span class="media-upload-description">파일을 클릭해서 선택하세요</span>
+              <span class="media-select-button">파일 선택</span>
+            </div>
+          </div>
 
           <!-- 재생 중 SAMI 자막 미리보기 텍스트가 이곳에 삽입됩니다. -->
           <div id="samiOverlay"></div>
@@ -188,6 +204,6 @@
       </div>
     </div>
     <!-- 앱의 주요 동작을 담당하는 스크립트입니다. -->
-    <script src="script.js"></script>
+    <script src="script.js?v=20260620"></script>
   </body>
 </html>

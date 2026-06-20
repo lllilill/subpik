@@ -417,6 +417,31 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // 이 애니메이션 버튼은 SAMI 출력을 생성하고 출력 화면 표시도 전환합니다.
   const clickBtn = document.querySelector(".click-anim-container");
+  const rootStyles = window.getComputedStyle(document.documentElement);
+  const parsedTransferButtonOffsetX = parseFloat(
+    rootStyles.getPropertyValue("--transfer-control-offset-x")
+  );
+  const TRANSFER_BUTTON_OFFSET_X = Number.isFinite(
+    parsedTransferButtonOffsetX
+  )
+    ? parsedTransferButtonOffsetX
+    : 0;
+  const parsedTransferControlSize = parseFloat(
+    rootStyles.getPropertyValue("--transfer-control-size")
+  );
+  const TRANSFER_CONTROL_SIZE = Number.isFinite(
+    parsedTransferControlSize
+  )
+    ? parsedTransferControlSize
+    : 44;
+  const TRANSFER_CONTROL_EDGE_GAP = 8;
+  const MIN_TRANSFER_CONTROL_SAFETY_SPACE = 54;
+  const TRANSFER_CONTROL_SAFETY_SPACE = Math.max(
+    MIN_TRANSFER_CONTROL_SAFETY_SPACE,
+    TRANSFER_BUTTON_OFFSET_X +
+      TRANSFER_CONTROL_SIZE / 2 +
+      TRANSFER_CONTROL_EDGE_GAP
+  );
 
   // 작업영역 변경은 생성 결과를 건드리지 않고 생성 버튼만 미완료 상태로 되돌립니다.
   function markWorkspaceDirty() {
@@ -541,8 +566,10 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     const divider = document.getElementById("divider");
+    const dividerMarginLeft =
+      parseFloat(window.getComputedStyle(divider).marginLeft) || 0;
     clickBtn.style.left = `${
-      divider.offsetLeft + divider.offsetWidth + 45
+      divider.offsetLeft - dividerMarginLeft + TRANSFER_BUTTON_OFFSET_X
     }px`;
   }
 
@@ -2388,21 +2415,63 @@ ${styleLines}
   const videoPanel = document.querySelector(".video-panel");
   const mainContent = document.querySelector(".main-content");
   let isDragging = false;
+  const MAX_MEDIA_PANEL_WIDTH = 1432;
+  const COLLAPSED_MEDIA_THRESHOLD = 48;
 
-  let maxDividerX = window.innerWidth;
+  // 최초 화면에서는 재생바 중심이 화살표 중심과 같은 높이에 오도록
+  // 재생바를 움직이지 않고 미디어 패널과 구분선의 가로 위치를 보정합니다.
+  function alignInitialDividerToTimeline() {
+    const timeline = document.getElementById("timelineContainer");
+    const leftBar = document.getElementById("leftBar");
+    if (!timeline || !leftBar || !clickBtn) return;
+
+    const timelineRect = timeline.getBoundingClientRect();
+    const controlRect = clickBtn.getBoundingClientRect();
+    const timelineCenterY = timelineRect.top + timelineRect.height / 2;
+    const controlCenterY = controlRect.top + controlRect.height / 2;
+    const verticalDelta = controlCenterY - timelineCenterY;
+
+    if (Math.abs(verticalDelta) < 0.5) return;
+
+    const leftBarWidth = leftBar.getBoundingClientRect().width;
+    const currentMediaWidth = videoPanel.getBoundingClientRect().width;
+    const widthDelta = verticalDelta * (16 / 9);
+    const maxMediaWidth = Math.min(
+      MAX_MEDIA_PANEL_WIDTH,
+      window.innerWidth -
+        leftBarWidth -
+        TRANSFER_CONTROL_SAFETY_SPACE
+    );
+    const desiredMediaWidth = Math.max(
+      0,
+      Math.min(currentMediaWidth + widthDelta, maxMediaWidth)
+    );
+    const desiredDividerX = leftBarWidth + desiredMediaWidth;
+
+    videoPanel.style.width = `${desiredMediaWidth}px`;
+    mainContent.style.marginLeft = `${desiredDividerX}px`;
+    divider.style.left = `${desiredDividerX}px`;
+    clickBtn.style.left = `${
+      desiredDividerX + TRANSFER_BUTTON_OFFSET_X
+    }px`;
+
+    requestAnimationFrame(() => {
+      resizeTimelineCanvas();
+      resizeWaveformCanvas();
+      updateSubtitleScale();
+    });
+  }
+
+  requestAnimationFrame(alignInitialDividerToTimeline);
 
   divider.addEventListener("mousedown", () => {
     isDragging = true;
-
-    maxDividerX = window.innerWidth;
+    divider.classList.add("is-dragging");
   });
 
   document.addEventListener("mouseup", () => {
     isDragging = false;
-  });
-
-  document.addEventListener("mouseup", () => {
-    isDragging = false;
+    divider.classList.remove("is-dragging");
   });
 
   // 미디어 패널 크기를 바꾸고 관련 오버레이와 캔버스를 다시 계산합니다.
@@ -2416,47 +2485,26 @@ ${styleLines}
       ? leftBar.getBoundingClientRect().width
       : 0;
 
-    let desiredX = e.clientX;
-    desiredX = Math.min(desiredX, maxDividerX);
-
     const minX = leftBarWidth;
-    const maxX = containerWidth;
-    desiredX = Math.max(minX, Math.min(desiredX, maxX));
-
-    const prevWidth = videoPanel.clientWidth;
-    const prevClientHeight = videoPanel.clientHeight;
-    const existedScrollX = videoPanel.scrollWidth > prevWidth;
-    const existedScrollY = videoPanel.scrollHeight > prevClientHeight;
-
-    let desiredVideoWidth = desiredX - leftBarWidth;
-    videoPanel.style.width = desiredVideoWidth + "px";
-
-    if (desiredVideoWidth > prevWidth) {
-      const currentClientWidth = videoPanel.clientWidth;
-      const currentClientHeight = videoPanel.clientHeight;
-
-      const willScrollX = videoPanel.scrollWidth > currentClientWidth;
-      const willScrollY = videoPanel.scrollHeight > currentClientHeight;
-
-      if (
-        (!existedScrollX && willScrollX) ||
-        (!existedScrollY && willScrollY)
-      ) {
-        desiredVideoWidth = prevWidth;
-        videoPanel.style.width = desiredVideoWidth + "px";
-
-        desiredX = leftBarWidth + desiredVideoWidth;
-
-        maxDividerX = desiredX;
-      }
-    }
+    const maxX = Math.max(
+      minX,
+      Math.min(
+        containerWidth - TRANSFER_CONTROL_SAFETY_SPACE,
+        leftBarWidth + MAX_MEDIA_PANEL_WIDTH
+      )
+    );
+    const desiredX = Math.max(minX, Math.min(e.clientX, maxX));
+    const desiredVideoWidth = desiredX - leftBarWidth;
 
     videoPanel.style.width = desiredVideoWidth + "px";
+    videoPanel.classList.toggle(
+      "is-collapsed",
+      desiredVideoWidth <= COLLAPSED_MEDIA_THRESHOLD
+    );
     mainContent.style.marginLeft = desiredX + "px";
     divider.style.left = desiredX + "px";
 
-    const btn = document.querySelector(".click-anim-container");
-    btn.style.left = `${desiredX + divider.offsetWidth + 45}px`;
+    clickBtn.style.left = `${desiredX + TRANSFER_BUTTON_OFFSET_X}px`;
 
     updateSubtitleScale();
     updateOutputBounds();

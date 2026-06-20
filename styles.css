@@ -1884,3 +1884,375 @@ body.modal-open * {
   display: none;
   z-index: 3;
 }
+
+/* --------------------------------------------------------------------------
+   2026 dark workspace redesign
+   Existing ids and interaction targets are intentionally preserved. This
+   final layer only changes presentation so media, resize, and export logic
+   continue to use the same DOM contracts.
+   -------------------------------------------------------------------------- */
+
+:root {
+  --workspace-bg: #081321;
+  --rail-bg: #0a1422;
+  --panel-bg: #0d1929;
+  --surface-bg: #091524;
+  --surface-raised: #101d2f;
+  --line: #21334a;
+  --line-strong: #2b415b;
+  --text-primary: #e7eef8;
+  --text-muted: #8290a3;
+  --accent: #3b82f6;
+  --accent-hover: #5794f8;
+  --rail-width: 68px;
+  --initial-media-width: min(44%, 1432px);
+  --transfer-control-size: 44px;
+  --transfer-control-offset-x: 0px;
+  --transfer-icon-scale: 0.72;
+  --transfer-icon-hover-scale: 0.828;
+}
+
+html,
+body {
+  width: 100%;
+  overflow: hidden;
+  background: var(--workspace-bg);
+}
+
+/* Compact navigation rail */
+#leftBar {
+  width: var(--rail-width);
+  padding: 66px 0 0;
+  justify-content: flex-start;
+  gap: 16px;
+  background: #091522;
+  border-right: 1px solid #1d3045;
+  box-shadow: none;
+}
+
+#leftBar .app-logo {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  width: 32px;
+  height: 32px;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+#leftBar > button,
+#leftBar #fullscreen-btn,
+#leftBar #caption-btn,
+#leftBar #copy-btn,
+#leftBar #download-btn {
+  position: relative !important;
+  inset: auto !important;
+  order: initial !important;
+  transform: none !important;
+  display: flex !important;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  width: 100% !important;
+  height: 48px !important;
+  padding: 2px 0 !important;
+  margin: 0 !important;
+  color: #91a0b4;
+  background: transparent !important;
+  border-radius: 0;
+  transition: color 0.15s ease, background-color 0.15s ease,
+    transform 0.15s ease;
+}
+
+#leftBar button:not(:disabled):hover {
+  color: #d8e3ef !important;
+  background: #111f31 !important;
+  transform: scale(1.08) !important;
+}
+
+#leftBar button:disabled {
+  color: #607086 !important;
+  opacity: 1 !important;
+}
+
+#leftBar button:focus-visible {
+  outline: 2px solid #4f8ff7;
+  outline-offset: -3px;
+}
+
+#leftBar .material-icons {
+  color: currentColor;
+  font-size: 20px !important;
+  line-height: 1 !important;
+}
+
+#leftBar .leftbar-icon {
+  width: 20px;
+  height: 20px;
+  overflow: visible;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+#leftBar .leftbar-label {
+  color: currentColor;
+  font-size: 10px;
+  font-weight: 700 !important;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+#caption-btn.active,
+#copy-btn.active,
+#caption-btn.active .material-icons,
+#copy-btn.active .material-icons {
+  color: #60a5fa !important;
+}
+
+#caption-btn.active,
+#copy-btn.active {
+  background: rgba(59, 130, 246, 0.12) !important;
+  box-shadow: inset 3px 0 0 #3b82f6;
+}
+
+/* Media workspace card */
+.video-panel {
+  left: 0;
+  width: var(--initial-media-width);
+  height: 100vh;
+  margin-left: var(--rail-width);
+  padding: 8px 24px;
+  background: var(--panel-bg);
+  border-right: 0;
+  overflow: hidden;
+}
+
+.video-panel.is-collapsed {
+  padding: 0;
+  border-right: 0;
+  background: transparent;
+}
+
+.video-panel.is-collapsed #player-container {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.video-panel #player-container {
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  gap: 8px;
+  box-sizing: border-box;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  overflow: hidden;
+}
+
+.video-panel #video-container {
+  flex: 0 0 auto;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  box-sizing: border-box;
+  background: var(--surface-bg);
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+}
+
+.video-panel video {
+  border-radius: 9px;
+}
+
+.video-panel #video-placeholder {
+  inset: 0;
+  color: var(--text-muted);
+  font-size: inherit;
+}
+
+.media-upload-content {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  padding: 24px;
+}
+
+.media-upload-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  margin-bottom: 10px;
+  color: #60a5fa;
+  background: #102238;
+  border: 1px dashed #49647f;
+  border-radius: 12px;
+}
+
+.media-upload-icon .material-icons {
+  color: currentColor;
+  font-size: 22px !important;
+}
+
+.media-upload-icon svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.media-upload-content strong {
+  margin-bottom: 5px;
+  color: var(--text-primary);
+  font-size: 15px;
+  line-height: 1.25;
+}
+
+.media-upload-description {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700 !important;
+  line-height: 1.4;
+}
+
+.media-select-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 68px;
+  height: 30px;
+  margin-top: 12px;
+  padding: 0 12px;
+  box-sizing: border-box;
+  color: #fff;
+  background: var(--accent);
+  border-radius: 6px;
+  box-shadow: 0 5px 14px rgba(59, 130, 246, 0.18);
+  font-size: 11px;
+  font-weight: 800 !important;
+}
+
+#video-container:hover .media-select-button {
+  background: var(--accent-hover);
+}
+
+.video-panel #timelineContainer {
+  flex: 0 0 24px;
+  width: 100%;
+  height: 24px !important;
+  min-height: 24px;
+  overflow: hidden;
+  background: var(--surface-bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.video-panel #timelineCanvas {
+  height: 24px;
+}
+
+#waveformContainer {
+  flex: 1 1 auto;
+  min-height: 80px;
+  height: auto;
+  background: var(--surface-bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+/* Right editing workspace */
+.main-content {
+  margin-left: calc(var(--rail-width) + var(--initial-media-width));
+  background: var(--workspace-bg);
+}
+
+/* Keep the resize hit area wide while rendering a single quiet divider line. */
+#divider {
+  left: calc(var(--rail-width) + var(--initial-media-width));
+  width: 26px;
+  margin-left: -10px;
+  background: transparent;
+}
+
+#divider::before {
+  left: 10px;
+  width: 1px;
+  background: var(--line);
+  border: 0;
+  opacity: 0.72;
+  transition: background-color 0.15s ease, opacity 0.15s ease;
+}
+
+#divider:hover::before,
+#divider.is-dragging::before {
+  background: #3b5573;
+  opacity: 1;
+}
+
+/* Arrow control located at the red marker in the supplied reference. */
+.click-anim-container {
+  position: absolute;
+  flex: none;
+  box-sizing: border-box;
+  width: var(--transfer-control-size);
+  height: var(--transfer-control-size);
+  left: calc(
+    var(--initial-media-width) + var(--rail-width) +
+      var(--transfer-control-offset-x)
+  );
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 2100;
+  color: #d3deec;
+  background: var(--surface-raised);
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  box-shadow: 0 4px 12px rgba(2, 8, 18, 0.28);
+  transition: background-color 0.15s ease, border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.click-anim-container .click-anim-inner {
+  transform: scale(var(--transfer-icon-scale));
+  transform-origin: center;
+}
+
+.click-anim-container:hover .click-anim-inner {
+  transform: scale(var(--transfer-icon-hover-scale));
+}
+
+.click-anim-container:hover {
+  background: #15253a;
+  border-color: #405a77;
+  box-shadow: 0 6px 16px rgba(2, 8, 18, 0.34);
+}
+
+@media (max-height: 560px) {
+  .video-panel #player-container {
+    padding: 0;
+    gap: 6px;
+  }
+
+  .media-upload-icon {
+    width: 36px;
+    height: 36px;
+    margin-bottom: 7px;
+  }
+
+  .media-select-button {
+    height: 27px;
+    margin-top: 8px;
+  }
+}

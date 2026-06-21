@@ -237,6 +237,16 @@ document.addEventListener("DOMContentLoaded", () => {
   const playheadDiv = document.getElementById("playhead");
   const waveformPlayheadDiv = document.getElementById("waveformPlayhead");
 
+  function updateWaveformInteractivity() {
+    const hasMedia = document.getElementById("video").hasAttribute("src");
+    waveformCanvas.classList.toggle(
+      "is-interactive",
+      Boolean(audioBuffer && hasMedia)
+    );
+  }
+
+  updateWaveformInteractivity();
+
   // 초 단위 시간을 화면의 시간 입력칸에서 쓰는 mm:ss.mmm 형식으로 바꿉니다.
   function formatTime(t) {
     const totalMs = Math.floor(t * 1000);
@@ -1129,6 +1139,7 @@ document.addEventListener("DOMContentLoaded", () => {
       })
       .then((decodedBuffer) => {
         audioBuffer = decodedBuffer;
+        updateWaveformInteractivity();
         maxZoom = audioBuffer.length / waveformCanvas.width;
 
         if (video.readyState >= 1) {
@@ -1144,6 +1155,7 @@ document.addEventListener("DOMContentLoaded", () => {
       })
       .catch((err) => {
         audioBuffer = null;
+        updateWaveformInteractivity();
         drawWaveform();
 
         updateZoomHighlight();
@@ -1365,6 +1377,7 @@ document.addEventListener("DOMContentLoaded", () => {
       fileInput.value = "";
 
       audioBuffer = null;
+      updateWaveformInteractivity();
       maxZoom = undefined;
       zoomLevel = 1;
       panOffset = 0;

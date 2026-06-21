@@ -1921,10 +1921,14 @@ body.modal-open .click-anim-container .arrow-right {
   top: 0;
   width: 100%;
   height: 100%;
+  cursor: default;
+}
+
+#waveformCanvas.is-interactive {
   cursor: grab;
 }
 
-#waveformCanvas:active {
+#waveformCanvas.is-interactive:active {
   cursor: grabbing;
 }
 

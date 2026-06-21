@@ -1521,6 +1521,10 @@ document.addEventListener("DOMContentLoaded", () => {
     waveformCanvas.width = rect.width;
     waveformCanvas.height = rect.height;
     drawWaveform();
+
+    if (audioBuffer) {
+      syncPlayheadsToCurrentWaveformView(video.currentTime);
+    }
   }
 
   // 레이아웃 변경 후에도 타임라인 캔버스가 선명하게 보이도록 합니다.
@@ -3055,50 +3059,6 @@ ${styleLines}
     updateSubtitleScale();
     updateOutputBounds();
     resizeWaveformCanvas();
-
-    if (audioBuffer) {
-      const duration = video.duration;
-      const totalSamples = audioBuffer.length;
-      const currentSample =
-        duration > 0 ? (video.currentTime / duration) * totalSamples : 0;
-
-      const segmentLength = Math.floor(totalSamples / zoomLevel);
-      let desiredPan;
-      if (segmentLength >= totalSamples) {
-        desiredPan = 0;
-      } else {
-        desiredPan = currentSample - segmentLength / 2;
-      }
-      if (desiredPan < 0) desiredPan = 0;
-      if (desiredPan > totalSamples - segmentLength) {
-        desiredPan = totalSamples - segmentLength;
-      }
-
-      commitWaveformPan(desiredPan);
-      drawWaveform();
-      updateZoomHighlight();
-
-      const phW = playheadDiv.offsetWidth;
-      const visW = timelineContainer.clientWidth;
-
-      let relX;
-      if (segmentLength >= totalSamples) {
-        relX = currentSample / totalSamples;
-      } else if (
-        panOffsetTarget > 0 &&
-        panOffsetTarget < totalSamples - segmentLength
-      ) {
-        relX = 0.5;
-      } else {
-        relX = (currentSample - panOffset) / segmentLength;
-      }
-
-      let cssX = relX * (visW - phW);
-
-      cssX = Math.max(0, Math.min(visW - phW, cssX));
-      setPlayheadPositions(cssX);
-
-    }
   });
 
   // 언어 사이에서 시간 구조를 드래그할 때 보여주는 시각 피드백입니다.
@@ -3804,23 +3764,13 @@ ${styleLines}
     playheadReqId = requestAnimationFrame(updatePlayhead);
   }
 
-  // 정밀 탐색 중 아주 짧은 재생으로 브라우저가 비디오 프레임을 갱신하게 합니다.
-  let singleFrameTimeout;
-
-  // 파형을 클릭하면 즉시 이동하고 아주 짧은 프레임 구간을 미리 봅니다.
+  // 파형 탐색은 재생 상태를 만들지 않고 일시정지된 프레임만 갱신합니다.
   waveformCanvas.addEventListener("mousedown", (e) => {
     if (!audioBuffer) return;
+    e.preventDefault();
     isSeeking = true;
 
     seekOnCanvas(e);
-
-    if (singleFrameTimeout) clearTimeout(singleFrameTimeout);
-
-    video.play();
-
-    singleFrameTimeout = setTimeout(() => {
-      video.pause();
-    }, 10);
   });
 
   // 파형 바깥으로 드래그하면 확대된 구간을 자동 스크롤합니다.
@@ -3835,13 +3785,6 @@ ${styleLines}
         autoScrollInterval = null;
       }
       seekOnCanvas(e);
-
-      if (singleFrameTimeout) clearTimeout(singleFrameTimeout);
-
-      video.play();
-      singleFrameTimeout = setTimeout(() => {
-        video.pause();
-      }, 10);
     } else {
       if (!autoScrollInterval) {
         const direction = e.clientX < rect.left ? -1 : 1;
@@ -3861,6 +3804,27 @@ ${styleLines}
           commitWaveformPan(nextPanOffset);
           drawWaveform();
           updateZoomHighlight();
+
+          // 포인터가 파형 밖에 머무는 동안에는 재생헤드를 해당 가장자리에
+          // 고정하고, 자동 스크롤로 새롭게 드러난 시간까지 함께 이동합니다.
+          const edgeSample = Math.max(
+            0,
+            Math.min(
+              totalSamples,
+              direction < 0
+                ? nextPanOffset
+                : nextPanOffset + segmentLength
+            )
+          );
+          const edgeTime =
+            (edgeSample / totalSamples) * video.duration;
+          const edgeX =
+            direction < 0 ? 0 : waveformContainer.clientWidth;
+
+          setPlayheadPositions(edgeX, edgeTime);
+          video.currentTime = edgeTime;
+          drawTimeline();
+          updateTimeDisplay();
         }, SCROLL_INTERVAL_MS);
       }
     }
@@ -3870,25 +3834,23 @@ ${styleLines}
     if (isSeeking) {
       isSeeking = false;
 
-      if (singleFrameTimeout) {
-        clearTimeout(singleFrameTimeout);
-        singleFrameTimeout = null;
-      }
+      video.pause();
+      cancelAnimationFrame(playheadReqId);
+      playheadReqId = null;
 
       if (autoScrollInterval) {
         clearInterval(autoScrollInterval);
         autoScrollInterval = null;
-      }
-
-      if (singleFrameTimeout) {
-        clearTimeout(singleFrameTimeout);
-        singleFrameTimeout = null;
       }
     }
   });
 
   // 파형의 x좌표를 샘플 위치와 미디어 currentTime으로 변환합니다.
   function seekOnCanvas(event) {
+    video.pause();
+    cancelAnimationFrame(playheadReqId);
+    playheadReqId = null;
+
     const rect = waveformCanvas.getBoundingClientRect();
     const totalSamples = audioBuffer.length;
     const width = waveformCanvas.width;

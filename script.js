@@ -217,6 +217,8 @@ document.addEventListener("DOMContentLoaded", () => {
   let audioBuffer = null;
   let isPlaying = false;
   let playheadReqId = null;
+  let waveformPanReqId = null;
+  let waveformPanPending = false;
   let zoomLevel = 1;
   let panOffset = 0;
 
@@ -235,6 +237,16 @@ document.addEventListener("DOMContentLoaded", () => {
   const playheadDiv = document.getElementById("playhead");
   const waveformPlayheadDiv = document.getElementById("waveformPlayhead");
 
+  function updateWaveformInteractivity() {
+    const hasMedia = document.getElementById("video").hasAttribute("src");
+    waveformCanvas.classList.toggle(
+      "is-interactive",
+      Boolean(audioBuffer && hasMedia)
+    );
+  }
+
+  updateWaveformInteractivity();
+
   // 초 단위 시간을 화면의 시간 입력칸에서 쓰는 mm:ss.mmm 형식으로 바꿉니다.
   function formatTime(t) {
     const totalMs = Math.floor(t * 1000);
@@ -248,10 +260,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // 생성된 SAMI 출력에서 파싱한 실시간 자막 미리보기용 큐입니다.
   let samiCues = [];
+  let previewLanguageOrder = [];
 
   // 생성된 SAMI 텍스트가 바뀔 때마다 미리보기 큐를 다시 만듭니다.
   function updateSamiCues() {
     const sami = document.getElementById("output").value;
+    previewLanguageOrder = Array.from(
+      document.querySelectorAll(".language-toggle .lang-btn.active")
+    )
+      .map((btn) => codeMap[btn.dataset.target])
+      .filter(Boolean);
     samiCues = [];
     if (!sami) {
       renderSamiOverlay(video.currentTime);
@@ -283,7 +301,12 @@ document.addEventListener("DOMContentLoaded", () => {
   // 현재 표시되는 비디오 크기에 맞춰 자막 오버레이 글자 크기를 비례 조정합니다.
   function updateSubtitleScale() {
     const overlay = document.getElementById("samiOverlay");
-    const currentWidth = videoContainer.clientWidth;
+    const fullscreenElement =
+      document.fullscreenElement || document.webkitFullscreenElement;
+    const currentWidth =
+      fullscreenElement === videoContainer.parentElement
+        ? video.getBoundingClientRect().width
+        : videoContainer.clientWidth;
     const intrinsicW = video.videoWidth || baselineWidth;
     const scale = currentWidth / intrinsicW;
 
@@ -313,20 +336,132 @@ document.addEventListener("DOMContentLoaded", () => {
     const overlay = document.getElementById("invalidInputOverlay");
     const popup = document.getElementById("invalidInputPopup");
     const list = document.getElementById("invalidInputList");
+    const summary = document.getElementById("invalidInputSummary");
 
     list.innerHTML = "";
-    items.forEach((msg) => {
+    items.forEach((item) => {
       const li = document.createElement("li");
-      li.textContent = msg;
+      const button = document.createElement("button");
+      const status = document.createElement("span");
+      const content = document.createElement("span");
+      const meta = document.createElement("span");
+      const bubble = document.createElement("span");
+      const message = document.createElement("span");
+      const chevron = document.createElement("span");
+
+      button.type = "button";
+      button.className = "invalid-input-item";
+      button.setAttribute("aria-label", `${item.meta}: ${item.message}`);
+      button.addEventListener("click", () => focusInvalidInput(item.target));
+
+      status.className = "invalid-input-status";
+      status.setAttribute("aria-hidden", "true");
+      status.textContent = "!";
+
+      content.className = "invalid-input-copy";
+      meta.className = "invalid-input-meta";
+      bubble.className = "invalid-input-bubble";
+      bubble.setAttribute("aria-hidden", "true");
+      meta.append(bubble, document.createTextNode(item.meta));
+
+      message.className = "invalid-input-message";
+      message.textContent = item.message;
+      content.append(meta, message);
+
+      chevron.className = "invalid-input-chevron";
+      chevron.setAttribute("aria-hidden", "true");
+      chevron.textContent = "›";
+
+      button.append(status, content, chevron);
+      li.appendChild(button);
       list.appendChild(li);
     });
 
+    summary.textContent = `${items.length}개의 항목을 확인해 주세요`;
+
     overlay.classList.remove("hidden");
+    popup.classList.add("positioning");
     popup.classList.remove("hidden");
+    requestAnimationFrame(() => {
+      positionInvalidInputPopover();
+      popup.classList.remove("positioning");
+    });
 
     document.body.classList.add("modal-open");
+    clickBtn?.setAttribute("aria-label", "입력 오류 닫기");
+    clickBtn?.setAttribute("aria-expanded", "true");
 
     document.getElementById("download-btn").disabled = true;
+  }
+
+  function closeInvalidInputModal() {
+    document.getElementById("invalidInputOverlay").classList.add("hidden");
+    document.getElementById("invalidInputPopup").classList.add("hidden");
+    document.body.classList.remove("modal-open");
+    clickBtn?.setAttribute("aria-label", "자막 생성 및 출력 전환");
+    clickBtn?.setAttribute("aria-expanded", "false");
+  }
+
+  // 화살표 원의 현재 위치를 기준으로 말풍선과 꼬리를 함께 배치합니다.
+  function positionInvalidInputPopover() {
+    const popup = document.getElementById("invalidInputPopup");
+    if (!clickBtn || popup.classList.contains("hidden")) return;
+
+    const viewportMargin = 16;
+    const tailWidth = 16;
+    const popoverGap = 8;
+    const maxPopoverWidth = 520;
+    const anchorRect = clickBtn.getBoundingClientRect();
+    const anchorCenterX = anchorRect.left + anchorRect.width / 2;
+    const anchorCenterY = anchorRect.top + anchorRect.height / 2;
+    const availableRight =
+      window.innerWidth -
+      anchorRect.right -
+      tailWidth -
+      popoverGap -
+      viewportMargin;
+    const availableLeft =
+      anchorRect.left - tailWidth - popoverGap - viewportMargin;
+    const placement =
+      anchorCenterX <= window.innerWidth / 2 ? "right" : "left";
+    const availableWidth =
+      placement === "right" ? availableRight : availableLeft;
+    const popoverWidth = Math.min(
+      maxPopoverWidth,
+      Math.max(0, availableWidth)
+    );
+
+    popup.dataset.placement = placement;
+    popup.style.width = `${popoverWidth}px`;
+    popup.style.left =
+      placement === "right"
+        ? `${anchorRect.right + tailWidth + popoverGap}px`
+        : `${anchorRect.left - tailWidth - popoverGap - popoverWidth}px`;
+
+    const popupHeight = popup.getBoundingClientRect().height;
+    const maxTop = Math.max(
+      viewportMargin,
+      window.innerHeight - viewportMargin - popupHeight
+    );
+    const popupTop = Math.max(
+      viewportMargin,
+      Math.min(anchorCenterY - popupHeight / 2, maxTop)
+    );
+    const tailInset = 28;
+    const tailY = Math.max(
+      tailInset,
+      Math.min(anchorCenterY - popupTop, popupHeight - tailInset)
+    );
+
+    popup.style.top = `${popupTop}px`;
+    popup.style.setProperty("--popover-tail-y", `${tailY}px`);
+  }
+
+  function focusInvalidInput(target) {
+    if (!target) return;
+    closeInvalidInputModal();
+    target.scrollIntoView({ behavior: "smooth", block: "center" });
+    window.setTimeout(() => target.focus(), 180);
   }
 
   // 사용자가 입력칸으로 돌아오면 오류 강조 표시를 제거합니다.
@@ -342,11 +477,11 @@ document.addEventListener("DOMContentLoaded", () => {
     videoContainer.style.borderColor = "#6b7280";
   };
   const onDragLeave = () => {
-    videoContainer.style.borderColor = "#d1d5db";
+    videoContainer.style.borderColor = "";
   };
   const onDrop = (e) => {
     e.preventDefault();
-    videoContainer.style.borderColor = "#d1d5db";
+    videoContainer.style.borderColor = "";
 
     const file = e.dataTransfer.files[0];
     if (
@@ -368,8 +503,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // 복사나 정렬 목적의 언어 드래그 상호작용이 끝난 뒤 상태를 초기화합니다.
   function resetDragState() {
-    if (dragSourceBtn) dragSourceBtn.style.opacity = "";
-    setDropHighlight(null);
+    if (dragSourceBtn) {
+      dragSourceBtn.style.opacity = "";
+      dragSourceBtn.classList.remove(
+        "language-drag-source",
+        "language-remove-target"
+      );
+    }
+    clearLanguageDropFeedback();
+    languageDropIntent = null;
     draggingLang = null;
     dragSourceBtn = null;
   }
@@ -404,11 +546,80 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // 이 애니메이션 버튼은 SAMI 출력을 생성하고 출력 화면 표시도 전환합니다.
   const clickBtn = document.querySelector(".click-anim-container");
+  const dividerValleyShape = document.querySelector(
+    ".divider-valley-shape"
+  );
+  const rootStyles = window.getComputedStyle(document.documentElement);
+  const parsedTransferButtonOffsetX = parseFloat(
+    rootStyles.getPropertyValue("--transfer-control-offset-x")
+  );
+  const TRANSFER_BUTTON_OFFSET_X = Number.isFinite(
+    parsedTransferButtonOffsetX
+  )
+    ? parsedTransferButtonOffsetX
+    : 0;
+  const parsedTransferControlSize = parseFloat(
+    rootStyles.getPropertyValue("--transfer-control-size")
+  );
+  const TRANSFER_CONTROL_SIZE = Number.isFinite(
+    parsedTransferControlSize
+  )
+    ? parsedTransferControlSize
+    : 44;
+  const parsedDividerGutterWidth = parseFloat(
+    rootStyles.getPropertyValue("--divider-gutter-width")
+  );
+  const DIVIDER_GUTTER_WIDTH = Number.isFinite(parsedDividerGutterWidth)
+    ? parsedDividerGutterWidth
+    : 44;
+  const parsedDividerMediaOverlap = parseFloat(
+    rootStyles.getPropertyValue("--divider-media-overlap")
+  );
+  const DIVIDER_MEDIA_OVERLAP = Number.isFinite(parsedDividerMediaOverlap)
+    ? parsedDividerMediaOverlap
+    : 0;
+  const TRANSFER_CONTROL_EDGE_GAP = 8;
+  const MIN_TRANSFER_CONTROL_SAFETY_SPACE = 54;
+  const TRANSFER_CONTROL_SAFETY_SPACE = Math.max(
+    MIN_TRANSFER_CONTROL_SAFETY_SPACE,
+    DIVIDER_GUTTER_WIDTH + TRANSFER_CONTROL_EDGE_GAP,
+    TRANSFER_BUTTON_OFFSET_X +
+      TRANSFER_CONTROL_SIZE / 2 +
+      TRANSFER_CONTROL_EDGE_GAP
+  );
+
+  // 작업영역 변경은 생성 결과를 건드리지 않고 생성 버튼만 미완료 상태로 되돌립니다.
+  function markWorkspaceDirty() {
+    const output = document.getElementById("output");
+    if (output) output.style.display = "none";
+
+    const downloadBtn = document.getElementById("download-btn");
+    if (downloadBtn) downloadBtn.disabled = true;
+
+    if (clickBtn) {
+      clickBtn.setAttribute("data-state", "0");
+      window.clickAnimState = 0;
+    }
+
+    document.querySelector(".main-content")?.classList.remove("minimal");
+    document.body.classList.remove("sami-code-editing");
+  }
 
   let clickToggle = false;
 
   if (clickBtn) {
+    clickBtn.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      clickBtn.click();
+    });
+
     clickBtn.addEventListener("click", () => {
+      if (document.body.classList.contains("modal-open")) {
+        closeInvalidInputModal();
+        return;
+      }
+
       subtitleGenerator.generateSubtitles(false);
 
       if (document.body.classList.contains("modal-open")) {
@@ -453,20 +664,12 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       const nowVisible = output.style.display === "block";
+      document.body.classList.toggle("sami-code-editing", nowVisible);
 
       if (nowVisible) {
         updateOutputBounds();
       } else {
         output.removeAttribute("style");
-      }
-
-      if (!nowVisible) {
-        document
-          .querySelectorAll(".language-toggle .lang-btn.ready")
-          .forEach((btn) => {
-            btn.style.animation = "none";
-            btn.style.backgroundSize = "100% 100%";
-          });
       }
 
       const container = document.querySelector(
@@ -522,35 +725,30 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const divider = document.getElementById("divider");
     clickBtn.style.left = `${
-      divider.offsetLeft + divider.offsetWidth + 45
+      divider.offsetLeft +
+      divider.offsetWidth / 2 +
+      TRANSFER_BUTTON_OFFSET_X
     }px`;
   }
 
-  // 사용자가 팝업이나 배경을 닫으면 검증 안내를 닫습니다.
-  document
-    .getElementById("invalidInputClose")
-    .addEventListener("click", () => {
-      document
-        .getElementById("invalidInputOverlay")
-        .classList.add("hidden");
-      document
-        .getElementById("invalidInputPopup")
-        .classList.add("hidden");
+  // 사용자가 팝업 바깥을 누르거나 Escape를 누르면 검증 안내를 닫습니다.
+  document.addEventListener("pointerdown", (event) => {
+    const popup = document.getElementById("invalidInputPopup");
+    if (popup.classList.contains("hidden")) return;
+    if (popup.contains(event.target) || clickBtn?.contains(event.target)) return;
+    closeInvalidInputModal();
+  });
 
-      document.body.classList.remove("modal-open");
-    });
-  document
-    .getElementById("invalidInputOverlay")
-    .addEventListener("click", () => {
-      document
-        .getElementById("invalidInputOverlay")
-        .classList.add("hidden");
-      document
-        .getElementById("invalidInputPopup")
-        .classList.add("hidden");
+  document.addEventListener("keydown", (event) => {
+    if (
+      event.key === "Escape" &&
+      !document.getElementById("invalidInputPopup").classList.contains("hidden")
+    ) {
+      closeInvalidInputModal();
+    }
+  });
 
-      document.body.classList.remove("modal-open");
-    });
+  window.addEventListener("resize", positionInvalidInputPopover);
 
   // Pickr가 강조 색상을 편집 중인 활성 언어 버튼입니다.
   let pickrTargetBtn = null;
@@ -632,6 +830,44 @@ document.addEventListener("DOMContentLoaded", () => {
   const timeDisplay = document.getElementById("time-display");
   const copyBtn = document.getElementById("copy-btn");
 
+  const timeFieldSelector = ".time, .last-time, #time-display";
+  const sanitizeTimeCharacters = (value) =>
+    value.replace(/[^0-9.:,;]/g, "");
+
+  // Time fields accept only ASCII digits and supported time separators.
+  // Capture-phase sanitizing also covers paste, autofill, and IME input before
+  // the subtitle generation listeners read the field value.
+  document.addEventListener(
+    "beforeinput",
+    (e) => {
+      if (!e.target.matches(timeFieldSelector)) return;
+      if (typeof e.data === "string" && /[^0-9.:,;]/.test(e.data)) {
+        e.preventDefault();
+      }
+    },
+    true
+  );
+
+  document.addEventListener(
+    "input",
+    (e) => {
+      if (!e.target.matches(timeFieldSelector)) return;
+
+      const originalValue = e.target.value;
+      const sanitizedValue = sanitizeTimeCharacters(originalValue);
+      if (originalValue === sanitizedValue) return;
+
+      const cursor = e.target.selectionStart ?? originalValue.length;
+      const nextCursor = sanitizeTimeCharacters(
+        originalValue.slice(0, cursor)
+      ).length;
+
+      e.target.value = sanitizedValue;
+      e.target.setSelectionRange(nextCursor, nextCursor);
+    },
+    true
+  );
+
   const captionBtn = document.getElementById("caption-btn");
   const samiOverlay = document.getElementById("samiOverlay");
   let captionsEnabled = true;
@@ -642,9 +878,26 @@ document.addEventListener("DOMContentLoaded", () => {
   const timelineCtx = timelineCanvas.getContext("2d");
   let timelineEnabled = false;
 
+  // 텍스트 편집이나 컨트롤 조작 중에는 전역 재생 단축키가 입력을
+  // 가로채지 않도록 합니다.
+  function isInteractiveKeyboardTarget(target) {
+    return (
+      target instanceof Element &&
+      Boolean(
+        target.closest(
+          'input, textarea, select, button, [contenteditable="true"], [role="button"]'
+        )
+      )
+    );
+  }
+
   // Enter 키로 빠르게 전체화면을 전환합니다.
   document.addEventListener("keydown", (e) => {
-    if (e.code === "Enter") {
+    if (
+      e.code === "Enter" &&
+      !e.defaultPrevented &&
+      !isInteractiveKeyboardTarget(e.target)
+    ) {
       e.preventDefault();
 
       fullscreenBtn.click();
@@ -694,14 +947,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // 사용자가 입력칸에 타이핑 중이 아닐 때 Space 키로 재생을 전환합니다.
   document.addEventListener("keydown", (e) => {
-    const ae = document.activeElement;
+    if (e.defaultPrevented || isInteractiveKeyboardTarget(e.target)) return;
 
-    if (
-      ae.tagName === "TEXTAREA" ||
-      (ae.tagName === "INPUT" && ae.type === "text")
-    ) {
-      return;
-    }
     if (e.code === "Space") {
       e.preventDefault();
       if (video.paused) video.play();
@@ -869,20 +1116,21 @@ document.addEventListener("DOMContentLoaded", () => {
     resizeTimelineCanvas();
     drawTimeline();
     videoContainer.style.borderColor = "transparent";
-    copyBtn.disabled = false;
-
     copyBtn.classList.add("active");
     timeDisplay.classList.remove("hidden");
 
-    captionBtn.disabled = false;
-
     captionBtn.classList.add("active");
+    captionsEnabled = true;
     samiOverlay.style.display = "block";
 
-    fullscreenBtn.disabled = false;
+    updateMediaToolbarAvailability();
 
     zoomLevel = 1;
     panOffset = 0;
+    panOffsetTarget = 0;
+    cancelAnimationFrame(waveformPanReqId);
+    waveformPanReqId = null;
+    waveformPanPending = false;
 
     file
       .arrayBuffer()
@@ -891,6 +1139,7 @@ document.addEventListener("DOMContentLoaded", () => {
       })
       .then((decodedBuffer) => {
         audioBuffer = decodedBuffer;
+        updateWaveformInteractivity();
         maxZoom = audioBuffer.length / waveformCanvas.width;
 
         if (video.readyState >= 1) {
@@ -906,6 +1155,7 @@ document.addEventListener("DOMContentLoaded", () => {
       })
       .catch((err) => {
         audioBuffer = null;
+        updateWaveformInteractivity();
         drawWaveform();
 
         updateZoomHighlight();
@@ -927,6 +1177,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   video.addEventListener("play", () => {
     if (audioBuffer) {
+      cancelAnimationFrame(waveformPanReqId);
+      waveformPanReqId = null;
       updatePlayhead();
     }
   });
@@ -934,7 +1186,16 @@ document.addEventListener("DOMContentLoaded", () => {
   // 렌더링되는 각 비디오 프레임마다 활성 클래스별 최신 큐를 선택합니다.
   function renderSamiOverlay(t = video.currentTime) {
     const lines = [];
-    const classes = [...new Set(samiCues.map((c) => c.cls))];
+    const cueClasses = [...new Set(samiCues.map((c) => c.cls))];
+    const cueClassSet = new Set(cueClasses);
+    const generatedClasses = previewLanguageOrder.filter((code) =>
+      cueClassSet.has(code)
+    );
+    const generatedClassSet = new Set(generatedClasses);
+    const classes = generatedClasses.concat(
+      cueClasses.filter((code) => !generatedClassSet.has(code))
+    );
+
     classes.forEach((cls) => {
       let lastCue = null;
       samiCues
@@ -969,6 +1230,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
   video.addEventListener("pause", () => {
     cancelAnimationFrame(playheadReqId);
+    playheadReqId = null;
+    if (waveformPanPending) {
+      startWaveformPanAnimation();
+    }
     renderSamiOverlay(video.currentTime);
   });
 
@@ -990,7 +1255,11 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!isNaN(newTime)) {
       video.currentTime = newTime;
       drawTimeline();
-      updatePlayhead();
+      if (audioBuffer) {
+        centerWaveformAtTime(newTime);
+      } else {
+        setPlayheadPositions(0, newTime);
+      }
       video.play();
       clearTimeout(scrubTimeout);
       scrubTimeout = setTimeout(() => {
@@ -1027,7 +1296,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // 시간 표시를 클릭하면 정확한 시간을 복사하거나 드래그할 수 있도록 일시정지합니다.
   timeDisplay.addEventListener("click", (e) => {
-    e.preventDefault();
     e.stopPropagation();
     if (!timeDisplay.disabled && video.src) {
       video.pause();
@@ -1038,20 +1306,32 @@ document.addEventListener("DOMContentLoaded", () => {
   timeDisplay.addEventListener("blur", () => {
     if (timeDisplay.disabled || !video.src) return;
 
-    const t =
-      subtitleGenerator.convertTimeToMilliseconds(timeDisplay.value) /
-      1000;
+    const timeMs = subtitleGenerator.convertTimeToMilliseconds(
+      timeDisplay.value
+    );
 
-    if (t != null && !isNaN(video.duration)) {
-      video.currentTime = Math.min(t, video.duration);
+    if (timeMs !== null && Number.isFinite(video.duration)) {
+      const targetTime = Math.max(
+        0,
+        Math.min(timeMs / 1000, video.duration)
+      );
+      const currentDisplayMs = Math.floor(video.currentTime * 1000);
+      const targetDisplayMs = Math.floor(targetTime * 1000);
+
+      clearTimeout(scrubTimeout);
+      video.pause();
+
+      if (targetDisplayMs !== currentDisplayMs) {
+        video.currentTime = targetTime;
+      }
 
       drawTimeline();
-      updatePlayhead();
-      video.play();
-      clearTimeout(scrubTimeout);
-      scrubTimeout = setTimeout(() => {
-        video.pause();
-      }, 100);
+      if (audioBuffer) {
+        centerWaveformAtTime(targetTime);
+      } else {
+        setPlayheadPositions(0, targetTime);
+      }
+      renderSamiOverlay(targetTime);
       updateTimeDisplay();
     } else {
       timeDisplay.value = formatTime(video.currentTime);
@@ -1076,20 +1356,37 @@ document.addEventListener("DOMContentLoaded", () => {
       video.load();
       video.style.display = "none";
       placeholder.style.display = "block";
-      videoContainer.style.borderColor = "#d1d5db";
+      videoContainer.style.borderColor = "";
       timeDisplay.disabled = true;
+      timeDisplay.classList.add("hidden");
 
-      copyBtn.disabled = true;
-      fullscreenBtn.disabled = true;
+      copyBtn.classList.remove("active");
+      captionBtn.classList.remove("active");
+      captionsEnabled = false;
+      samiOverlay.style.display = "none";
+      updateMediaToolbarAvailability();
 
       timeDisplay.value = "00:00.000";
       timelineEnabled = false;
       timelineCanvas.style.display = "none";
+      const zoomHighlight = document.getElementById("zoomHighlight");
+      zoomHighlight.style.left = "0";
+      zoomHighlight.style.width = "0";
       drawTimeline();
 
       fileInput.value = "";
 
-      waveformContainer.style.visibility = "hidden";
+      audioBuffer = null;
+      updateWaveformInteractivity();
+      maxZoom = undefined;
+      zoomLevel = 1;
+      panOffset = 0;
+      panOffsetTarget = 0;
+      cancelAnimationFrame(waveformPanReqId);
+      waveformPanReqId = null;
+      waveformPanPending = false;
+      waveformContainer.style.visibility = "visible";
+      resizeWaveformCanvas();
       playheadDiv.style.display = "none";
       waveformPlayheadDiv.style.display = "none";
 
@@ -1140,6 +1437,77 @@ document.addEventListener("DOMContentLoaded", () => {
     highlight.style.width = `${widthPct}%`;
   }
 
+  // 전체 재생바나 시간 입력으로 이동할 때 파형 중앙을 새 목표 위치로 설정합니다.
+  function centerWaveformAtTime(mediaTime) {
+    if (
+      !audioBuffer ||
+      !Number.isFinite(video.duration) ||
+      video.duration <= 0
+    ) {
+      return;
+    }
+
+    const totalSamples = audioBuffer.length;
+    const currentSample = Math.max(
+      0,
+      Math.min(totalSamples, (mediaTime / video.duration) * totalSamples)
+    );
+    const segmentLength = Math.floor(totalSamples / zoomLevel);
+    const maxPanOffset = Math.max(0, totalSamples - segmentLength);
+    const desiredPanOffset =
+      segmentLength >= totalSamples
+        ? 0
+        : currentSample - segmentLength / 2;
+
+    panOffsetTarget = Math.max(
+      0,
+      Math.min(desiredPanOffset, maxPanOffset)
+    );
+    waveformPanPending = true;
+
+    syncPlayheadsToCurrentWaveformView(mediaTime);
+    startWaveformPanAnimation();
+  }
+
+  // 재생이 멈춘 뒤에도 파형 표시 영역이 목표 위치까지 부드럽게 이동하도록 합니다.
+  function startWaveformPanAnimation() {
+    if (waveformPanReqId !== null || !video.paused) return;
+    waveformPanReqId = requestAnimationFrame(animateWaveformPanToTarget);
+  }
+
+  function animateWaveformPanToTarget() {
+    waveformPanReqId = null;
+    if (!audioBuffer || !video.paused) return;
+
+    panOffset += (panOffsetTarget - panOffset) * panSmooth;
+    const hasReachedTarget = Math.abs(panOffset - panOffsetTarget) < 0.5;
+    if (hasReachedTarget) {
+      panOffset = panOffsetTarget;
+      waveformPanPending = false;
+    }
+
+    drawWaveform();
+    updateZoomHighlight();
+    syncPlayheadsToCurrentWaveformView(video.currentTime);
+
+    if (!hasReachedTarget) {
+      waveformPanReqId = requestAnimationFrame(animateWaveformPanToTarget);
+    }
+  }
+
+  // 확대나 직접 탐색처럼 사용자가 뷰포트를 즉시 바꾸는 경우에는
+  // 이전 확대 배율에서 계산된 이동 목표가 새 위치를 덮어쓰지 않게 정리합니다.
+  function commitWaveformPan(nextPanOffset) {
+    if (waveformPanReqId !== null) {
+      cancelAnimationFrame(waveformPanReqId);
+      waveformPanReqId = null;
+    }
+
+    waveformPanPending = false;
+    panOffset = nextPanOffset;
+    panOffsetTarget = nextPanOffset;
+  }
+
   // The overview playhead uses the full media duration, while the waveform
   // playhead uses the currently visible (zoomed/panned) waveform coordinates.
   function setPlayheadPositions(waveformX, mediaTime = video.currentTime) {
@@ -1188,6 +1556,10 @@ document.addEventListener("DOMContentLoaded", () => {
     waveformCanvas.width = rect.width;
     waveformCanvas.height = rect.height;
     drawWaveform();
+
+    if (audioBuffer) {
+      syncPlayheadsToCurrentWaveformView(video.currentTime);
+    }
   }
 
   // 레이아웃 변경 후에도 타임라인 캔버스가 선명하게 보이도록 합니다.
@@ -1217,22 +1589,157 @@ document.addEventListener("DOMContentLoaded", () => {
 
   let controlTimeout;
   const player = document.getElementById("player-container");
+  const fullscreenFrameCanvas = document.createElement("canvas");
+  fullscreenFrameCanvas.id = "fullscreen-frame-canvas";
+  fullscreenFrameCanvas.setAttribute("aria-hidden", "true");
+  video.insertAdjacentElement("afterend", fullscreenFrameCanvas);
+  const fullscreenFrameContext = fullscreenFrameCanvas.getContext("2d", {
+    alpha: false,
+  });
+  let fullscreenFrameRequest = null;
+
+  function isPlayerFullscreen() {
+    const fullscreenElement =
+      document.fullscreenElement || document.webkitFullscreenElement;
+    return fullscreenElement === player;
+  }
+
+  function updateFullscreenMediaLayout() {
+    if (!isPlayerFullscreen() || !video.videoWidth || !video.videoHeight) return;
+
+    const stageWidth = player.clientWidth || window.innerWidth;
+    const stageHeight = player.clientHeight || window.innerHeight;
+    const mediaRatio = video.videoWidth / video.videoHeight;
+    let mediaWidth = stageWidth;
+    let mediaHeight = mediaWidth / mediaRatio;
+
+    if (mediaHeight > stageHeight) {
+      mediaHeight = stageHeight;
+      mediaWidth = mediaHeight * mediaRatio;
+    }
+
+    player.style.setProperty("--fullscreen-media-width", `${mediaWidth}px`);
+    player.style.setProperty("--fullscreen-media-height", `${mediaHeight}px`);
+  }
+
+  function clearFullscreenFrame() {
+    if (fullscreenFrameRequest !== null) {
+      cancelAnimationFrame(fullscreenFrameRequest);
+      fullscreenFrameRequest = null;
+    }
+    player.classList.remove("has-fullscreen-frame");
+  }
+
+  function captureFullscreenFrame() {
+    fullscreenFrameRequest = null;
+    if (
+      !isPlayerFullscreen() ||
+      !video.paused ||
+      video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA ||
+      !video.videoWidth ||
+      !video.videoHeight
+    ) {
+      player.classList.remove("has-fullscreen-frame");
+      return;
+    }
+
+    updateFullscreenMediaLayout();
+
+    // A paused video can lose its GPU overlay when the fullscreen timeline
+    // appears. Keep a copy of the current frame above that native layer.
+    const maxBackingSize = 2048;
+    const backingScale = Math.min(
+      1,
+      maxBackingSize / Math.max(video.videoWidth, video.videoHeight)
+    );
+    fullscreenFrameCanvas.width = Math.max(
+      1,
+      Math.round(video.videoWidth * backingScale)
+    );
+    fullscreenFrameCanvas.height = Math.max(
+      1,
+      Math.round(video.videoHeight * backingScale)
+    );
+
+    try {
+      fullscreenFrameContext.fillStyle = "#000";
+      fullscreenFrameContext.fillRect(
+        0,
+        0,
+        fullscreenFrameCanvas.width,
+        fullscreenFrameCanvas.height
+      );
+      fullscreenFrameContext.drawImage(
+        video,
+        0,
+        0,
+        fullscreenFrameCanvas.width,
+        fullscreenFrameCanvas.height
+      );
+      player.classList.add("has-fullscreen-frame");
+    } catch (error) {
+      player.classList.remove("has-fullscreen-frame");
+    }
+  }
+
+  function scheduleFullscreenFrameCapture() {
+    if (fullscreenFrameRequest !== null) {
+      cancelAnimationFrame(fullscreenFrameRequest);
+    }
+    fullscreenFrameRequest = requestAnimationFrame(captureFullscreenFrame);
+  }
+
+  video.addEventListener("play", clearFullscreenFrame);
+  video.addEventListener("pause", captureFullscreenFrame);
+  video.addEventListener("seeked", captureFullscreenFrame);
+  video.addEventListener("loadeddata", scheduleFullscreenFrameCapture);
+  video.addEventListener("emptied", clearFullscreenFrame);
+
+  window.addEventListener("resize", () => {
+    if (!isPlayerFullscreen()) return;
+    updateFullscreenMediaLayout();
+  });
 
   // 전체화면 진입/해제 시 보이는 컨트롤과 크기 조정 방식을 바꿉니다.
   function onFullScreenToggle() {
-    const isFS =
-      document.fullscreenElement === player ||
-      document.webkitFullscreenElement === player;
+    const isFS = isPlayerFullscreen();
+    player.classList.toggle("is-fullscreen-stage", isFS);
 
     if (isFS) {
+      updateFullscreenMediaLayout();
+      if (video.paused) captureFullscreenFrame();
       showControls();
       player.addEventListener("mousemove", showControls);
     } else {
+      clearFullscreenFrame();
+      player.style.removeProperty("--fullscreen-media-width");
+      player.style.removeProperty("--fullscreen-media-height");
       player.classList.remove("show-controls");
       player.removeEventListener("mousemove", showControls);
       clearTimeout(controlTimeout);
     }
-    updateSubtitleScale();
+
+    // Fullscreen viewport dimensions settle after the event. Re-measure the
+    // overlay canvases on the next two frames so portrait media keeps a stable
+    // stage while the controls fade in and out.
+    requestAnimationFrame(() => {
+      if (isFS) updateFullscreenMediaLayout();
+      resizeTimelineCanvas();
+      if (!isFS) resizeWaveformCanvas();
+      updateSubtitleScale();
+
+      requestAnimationFrame(() => {
+        if (isFS) {
+          updateFullscreenMediaLayout();
+          if (video.paused && !player.classList.contains("has-fullscreen-frame")) {
+            scheduleFullscreenFrameCapture();
+          }
+        }
+        resizeTimelineCanvas();
+        if (!isFS) resizeWaveformCanvas();
+        updateSubtitleScale();
+      });
+    });
   }
 
   ["fullscreenchange", "webkitfullscreenchange"].forEach((evt) =>
@@ -1387,7 +1894,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
 
-<input type="text" class="time" placeholder="Start time" draggable="true">
+<input type="text" class="time" placeholder="Start time" pattern="[0-9.:,;]*" draggable="true">
 
 
 
@@ -1408,7 +1915,7 @@ document.addEventListener("DOMContentLoaded", () => {
     createLastTimeInputGroup() {
       const l = document.createElement("div");
       l.className = "last-time-input";
-      l.innerHTML = `<input type="text" class="last-time" placeholder="End time" draggable="true">`;
+      l.innerHTML = `<input type="text" class="last-time" placeholder="End time" pattern="[0-9.:,;]*" draggable="true">`;
       return l;
     }
 
@@ -1517,26 +2024,34 @@ document.addEventListener("DOMContentLoaded", () => {
               .forEach((sec, sIdx) => {
                 sec.querySelectorAll(".time").forEach((ti, tIdx) => {
                   if (!ti.value || !this.validateTimeFormat(ti.value)) {
-                    invalid.push(
-                      `${shortCode} - 💬${sIdx + 1} - Start time ${
-                        tIdx + 1
-                      }`
-                    );
+                    invalid.push({
+                      meta: `${shortCode} · 자막 ${sIdx + 1}`,
+                      message: "시작 시간을 입력해 주세요",
+                      target: ti,
+                      lineIndex: tIdx,
+                    });
                     ti.classList.add("error");
                   }
                 });
 
                 const lt = sec.querySelector(".last-time");
                 if (!lt.value || !this.validateTimeFormat(lt.value)) {
-                  invalid.push(`${shortCode} - 💬${sIdx + 1} - End time`);
+                  invalid.push({
+                    meta: `${shortCode} · 자막 ${sIdx + 1}`,
+                    message: "종료 시간을 입력해 주세요",
+                    target: lt,
+                  });
                   lt.classList.add("error");
                 }
 
                 sec.querySelectorAll(".text").forEach((tx, txtIdx) => {
                   if (!tx.value.trim()) {
-                    invalid.push(
-                      `${shortCode} - 💬${sIdx + 1} - Text ${txtIdx + 1}`
-                    );
+                    invalid.push({
+                      meta: `${shortCode} · 자막 ${sIdx + 1}`,
+                      message: "자막 내용을 입력해 주세요",
+                      target: tx,
+                      lineIndex: txtIdx,
+                    });
                     tx.classList.add("error");
                   }
                 });
@@ -1544,11 +2059,7 @@ document.addEventListener("DOMContentLoaded", () => {
           });
 
         if (invalid.length > 0) {
-          showInvalidInputModal(
-            invalid.map((item) => {
-              return item;
-            })
-          );
+          showInvalidInputModal(invalid);
           return;
         }
 
@@ -1795,7 +2306,7 @@ ${styleLines}
           inp.value =
             inp.value.slice(0, start) + "|" + inp.value.slice(end);
           inp.setSelectionRange(start + 1, start + 1);
-          this.adjustInputWidth(inp);
+          inp.dispatchEvent(new Event("input", { bubbles: true }));
         }
       });
 
@@ -1806,54 +2317,28 @@ ${styleLines}
           e.target.id === "titleText" ||
           e.target.closest(".input-section")
         ) {
-          document.getElementById("output").style.display = "none";
-          document.getElementById("download-btn").disabled = true;
-
-          const clickBtn = document.querySelector(
-            ".click-anim-container"
-          );
-          if (clickBtn) {
-            clickBtn.setAttribute("data-state", "0");
-            window.clickAnimState = 0;
-          }
+          markWorkspaceDirty();
         }
       });
-
-      const disableDownloadAndResetClick = () => {
-        const dl = document.getElementById("download-btn");
-        if (dl) dl.disabled = true;
-
-        const clickCont = document.querySelector(".click-anim-container");
-        if (clickCont) {
-          clickCont.setAttribute("data-state", "0");
-          window.clickAnimState = 0;
-        }
-      };
 
       document.body.addEventListener("click", (e) => {
         const btn = e.target.closest(
           ".lang-btn, .lang-select-btn, .add-section-btn, .add-btn, .remove-btn"
         );
+
+        if (
+          btn?.classList.contains("lang-btn") &&
+          btn.classList.contains("ready")
+        ) {
+          const rect = btn.getBoundingClientRect();
+          const clickRatio = (e.clientX - rect.left) / rect.width;
+          if (clickRatio <= 0.2) return;
+        }
+
         if (btn) {
-          disableDownloadAndResetClick();
+          markWorkspaceDirty();
         }
       });
-
-      document
-        .querySelectorAll(
-          '.lang-btn, .lang-select-btn, [id^="add"][id$="SectionButton"], .add-btn, .remove-btn'
-        )
-        .forEach((btn) => {
-          btn.addEventListener("click", disableDownloadAndResetClick);
-        });
-
-      document
-        .querySelectorAll(".section-content input")
-        .forEach((inp) => {
-          inp.addEventListener("input", () => {
-            subtitleGenerator.generateSubtitles(true);
-          });
-        });
     }
 
     // 섹션 안의 모든 텍스트 입력칸 너비를 가장 긴 줄에 맞춥니다.
@@ -1895,6 +2380,9 @@ ${styleLines}
 
   // 언어 버튼은 숨김, 활성, ready/편집 가능 상태를 오갑니다.
   const langButtons = document.querySelectorAll(".lang-btn");
+  let draggingLang = null;
+  let dragSourceBtn = null;
+  let languageDropIntent = null;
 
   // 해당 언어 섹션에서 줄별 세부 컨트롤을 보여줄지 전환합니다.
   function setSectionEditability(lang, editable) {
@@ -1906,13 +2394,96 @@ ${styleLines}
       );
   }
 
+  function collapseTrackingInputGroups(lang) {
+    const code = codeMap[lang];
+
+    document
+      .querySelectorAll(`.input-section[data-lang-class="${code}"]`)
+      .forEach((section) => {
+        const groups = Array.from(section.querySelectorAll(".input-group"));
+        groups.slice(1).forEach((group) => group.remove());
+
+        const firstText = groups[0]?.querySelector(".text");
+        if (firstText) subtitleGenerator.adjustInputWidth(firstText);
+      });
+  }
+
   // 언어 버튼 내부 이벤트 대상을 다루기 위한 도우미입니다.
+  // Tracking 강조색을 바로 지우지 않고 등장 모션의 반대 방향으로 사라지게 합니다.
+  function playTrackingExit(btn) {
+    const currentBackground = getComputedStyle(btn).backgroundImage;
+    let fallbackTimer;
+
+    btn.style.removeProperty("animation");
+    btn.style.backgroundImage = currentBackground;
+    btn.style.backgroundSize = "100% 100%";
+    btn.classList.remove("ready");
+    btn.classList.add("tracking-exit");
+
+    const finish = () => {
+      if (!btn.classList.contains("tracking-exit")) return;
+
+      btn.classList.remove("tracking-exit");
+      btn.style.backgroundImage = "";
+      btn.style.backgroundSize = "";
+      clearTimeout(fallbackTimer);
+    };
+
+    btn.addEventListener(
+      "animationend",
+      (event) => {
+        if (event.animationName === "slideUnfill") finish();
+      },
+      { once: true }
+    );
+
+    // 애니메이션 이벤트가 생략되는 환경에서도 임시 상태를 정리합니다.
+    fallbackTimer = setTimeout(finish, 400);
+  }
+
   function closestLangBtn(el) {
     return el ? el.closest(".lang-btn") : null;
   }
 
-  // 보이는 각 언어 버튼에 활성화, ready 표시, 색상 선택기 열기,
-  // 언어 제거, 다른 활성 언어로 시간 구조 드래그 기능을 연결합니다.
+  function isPointInsideRect(x, y, rect) {
+    return (
+      x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom
+    );
+  }
+
+  function getLangBtnAtPoint(el, x, y) {
+    const btn = closestLangBtn(el);
+    if (!btn) return null;
+    return isPointInsideRect(x, y, btn.getBoundingClientRect()) ? btn : null;
+  }
+
+  function isPointInsideLanguageToggle(x, y) {
+    return isPointInsideRect(x, y, languageToggle.getBoundingClientRect());
+  }
+
+  function removeLanguageButton(btn) {
+    if (!btn || !btn.classList.contains("active")) return;
+
+    const lang = btn.dataset.target;
+    btn.classList.remove("ready", "tracking-exit", "active");
+    btn.style.display = "none";
+    btn.style.backgroundImage = "";
+    btn.style.removeProperty("animation");
+    btn.style.removeProperty("background-size");
+
+    setAddButtonsReady(lang, false);
+    setSectionEditability(lang, false);
+    subtitleGenerator.resetSections(lang);
+    subtitleGenerator.toggleLanguageSections();
+    reorderSectionContainers();
+
+    updateBookmarks();
+    updateAddLanguageButton();
+    markWorkspaceDirty();
+  }
+
+  // 보이는 각 언어 버튼에 활성화, Tracking 전환, 색상 선택기 열기,
+  // 시간 구조 복사와 목록 밖 드롭 제거 기능을 연결합니다.
   langButtons.forEach((btn) => {
     btn.addEventListener(
       "pointerdown",
@@ -1937,6 +2508,8 @@ ${styleLines}
         return;
       }
 
+      if (this.classList.contains("tracking-exit")) return;
+
       document.getElementById("output").style.display = "none";
       const dl = document.getElementById("download-btn");
       dl.disabled = true;
@@ -1953,15 +2526,12 @@ ${styleLines}
 
           showCenterPopup();
         } else {
-          btn.classList.remove("ready", "active");
           const lang = btn.dataset.target;
+          playTrackingExit(btn);
+          collapseTrackingInputGroups(lang);
           setAddButtonsReady(lang, false);
           setSectionEditability(lang, false);
-          subtitleGenerator.resetSections(lang);
-          btn.style.display = "none";
-          subtitleGenerator.handleLanguageChange();
-          subtitleGenerator.toggleLanguageSections();
-          updateAddLanguageButton();
+          updateBookmarks();
         }
         return;
       }
@@ -1974,6 +2544,8 @@ ${styleLines}
         setAddButtonsReady(btn.dataset.target, false);
         setSectionEditability(btn.dataset.target, false);
       } else if (!isReady) {
+        btn.style.removeProperty("animation");
+        btn.style.removeProperty("background-size");
         btn.classList.add("ready");
 
         delete btn.dataset.pickrColor;
@@ -1993,34 +2565,12 @@ ${styleLines}
       draggingLang = btn.dataset.target;
       dragSourceBtn = btn;
       btn.style.opacity = 0.6;
+      btn.classList.add("language-drag-source");
       e.dataTransfer.setData("text/plain", draggingLang);
+      e.dataTransfer.setData("application/x-subpik-language", draggingLang);
+      e.dataTransfer.effectAllowed = "copyMove";
     });
     btn.addEventListener("dragend", resetDragState);
-    btn.addEventListener("dragenter", (e) =>
-      setDropHighlight(e.currentTarget)
-    );
-    btn.addEventListener("dragleave", () => setDropHighlight(null));
-    btn.addEventListener("dragover", (e) => e.preventDefault());
-    btn.addEventListener("drop", (e) => {
-      e.preventDefault();
-      const targetLang = btn.dataset.target;
-      const srcLang = e.dataTransfer.getData("text/plain");
-      if (srcLang && srcLang !== targetLang) {
-        const srcBtn = document.querySelector(
-          `.lang-btn[data-target="${srcLang}"]`
-        );
-        if (
-          srcBtn.classList.contains("active") &&
-          btn.classList.contains("active")
-        ) {
-          subtitleGenerator.duplicateSectionsToTarget(
-            codeMap[srcLang],
-            codeMap[targetLang]
-          );
-        }
-      }
-      resetDragState();
-    });
   });
 
   // 처음 로드할 때는 초기 활성 언어만 표시합니다.
@@ -2121,6 +2671,7 @@ ${styleLines}
     );
 
     modal.classList.remove("hidden");
+    document.body.classList.add("language-modal-open");
 
     updateToggleBackdrop();
 
@@ -2139,6 +2690,7 @@ ${styleLines}
   modal.addEventListener("click", (e) => {
     if (e.target === modal) {
       modal.classList.add("hidden");
+      document.body.classList.remove("language-modal-open");
 
       toggleBackdrop.style.display = "none";
 
@@ -2150,6 +2702,7 @@ ${styleLines}
   backdrop.addEventListener("click", () => {
     modal.classList.add("hidden");
     backdrop.classList.add("hidden");
+    document.body.classList.remove("language-modal-open");
     toggleBackdrop.style.display = "none";
 
     document
@@ -2230,6 +2783,7 @@ ${styleLines}
 
       document.getElementById("languageModal").classList.add("hidden");
       document.getElementById("modalBackdrop").classList.add("hidden");
+      document.body.classList.remove("language-modal-open");
 
       toggleBackdrop.style.display = "none";
 
@@ -2271,153 +2825,548 @@ ${styleLines}
   const videoPanel = document.querySelector(".video-panel");
   const mainContent = document.querySelector(".main-content");
   let isDragging = false;
+  let dividerPointerId = null;
+  let dividerDragOffsetX = DIVIDER_GUTTER_WIDTH / 2;
+  let dividerSnapReady = false;
+  let isDividerSnapping = false;
+  let dividerSnapAnimationFrame = null;
+  let currentDividerX = divider.getBoundingClientRect().left;
+  let isMediaPanelClosed = false;
+  const MAX_MEDIA_PANEL_WIDTH = 1432;
+  const COLLAPSED_MEDIA_THRESHOLD = 48;
+  const DIVIDER_SNAP_DISTANCE = 320;
+  const DIVIDER_MAGNET_DISTANCE = DIVIDER_SNAP_DISTANCE;
+  const DIVIDER_MAGNET_PULL_STRENGTH = 0.65;
+  const DIVIDER_SNAP_DURATION = 220;
 
-  let maxDividerX = window.innerWidth;
-
-  divider.addEventListener("mousedown", () => {
-    isDragging = true;
-
-    maxDividerX = window.innerWidth;
-  });
-
-  document.addEventListener("mouseup", () => {
-    isDragging = false;
-  });
-
-  document.addEventListener("mouseup", () => {
-    isDragging = false;
-  });
-
-  // 미디어 패널 크기를 바꾸고 관련 오버레이와 캔버스를 다시 계산합니다.
-  document.addEventListener("mousemove", (e) => {
-    if (!isDragging) return;
-
-    const containerWidth = window.innerWidth;
-
+  function getDividerBounds() {
     const leftBar = document.getElementById("leftBar");
     const leftBarWidth = leftBar
       ? leftBar.getBoundingClientRect().width
       : 0;
+    const minX = Math.max(
+      0,
+      leftBarWidth - DIVIDER_MEDIA_OVERLAP
+    );
+    const maxX = Math.max(
+      minX,
+      Math.min(
+        window.innerWidth - TRANSFER_CONTROL_SAFETY_SPACE,
+        leftBarWidth + MAX_MEDIA_PANEL_WIDTH
+      )
+    );
 
-    let desiredX = e.clientX;
-    desiredX = Math.min(desiredX, maxDividerX);
+    return { leftBarWidth, minX, maxX };
+  }
 
-    const minX = leftBarWidth;
-    const maxX = containerWidth;
-    desiredX = Math.max(minX, Math.min(desiredX, maxX));
+  function updateMediaToolbarAvailability() {
+    const hasMedia = Boolean(video.getAttribute("src"));
+    const isUnavailable =
+      !hasMedia ||
+      isMediaPanelClosed ||
+      dividerSnapReady ||
+      isDividerSnapping;
 
-    const prevWidth = videoPanel.clientWidth;
-    const prevClientHeight = videoPanel.clientHeight;
-    const existedScrollX = videoPanel.scrollWidth > prevWidth;
-    const existedScrollY = videoPanel.scrollHeight > prevClientHeight;
+    fullscreenBtn.disabled = isUnavailable;
+    captionBtn.disabled = isUnavailable;
+    copyBtn.disabled = isUnavailable;
+  }
 
-    let desiredVideoWidth = desiredX - leftBarWidth;
-    videoPanel.style.width = desiredVideoWidth + "px";
+  function updateMediaPanelClosedState(isClosed) {
+    if (isMediaPanelClosed === isClosed) return;
+    isMediaPanelClosed = isClosed;
 
-    if (desiredVideoWidth > prevWidth) {
-      const currentClientWidth = videoPanel.clientWidth;
-      const currentClientHeight = videoPanel.clientHeight;
-
-      const willScrollX = videoPanel.scrollWidth > currentClientWidth;
-      const willScrollY = videoPanel.scrollHeight > currentClientHeight;
-
-      if (
-        (!existedScrollX && willScrollX) ||
-        (!existedScrollY && willScrollY)
-      ) {
-        desiredVideoWidth = prevWidth;
-        videoPanel.style.width = desiredVideoWidth + "px";
-
-        desiredX = leftBarWidth + desiredVideoWidth;
-
-        maxDividerX = desiredX;
-      }
+    if (isClosed) {
+      if (!video.paused) video.pause();
     }
 
-    videoPanel.style.width = desiredVideoWidth + "px";
-    mainContent.style.marginLeft = desiredX + "px";
-    divider.style.left = desiredX + "px";
+    updateMediaToolbarAvailability();
+  }
 
-    const btn = document.querySelector(".click-anim-container");
-    btn.style.left = `${desiredX + divider.offsetWidth + 45}px`;
+  function applyDividerPosition(dividerX) {
+    const { leftBarWidth, minX, maxX } = getDividerBounds();
+    const nextX = Math.max(minX, Math.min(dividerX, maxX));
+    const mediaWidth = Math.max(
+      0,
+      nextX + DIVIDER_MEDIA_OVERLAP - leftBarWidth
+    );
+
+    currentDividerX = nextX;
+    videoPanel.style.width = `${mediaWidth}px`;
+    videoPanel.classList.toggle(
+      "is-collapsed",
+      mediaWidth <= COLLAPSED_MEDIA_THRESHOLD
+    );
+    updateMediaPanelClosedState(mediaWidth <= 0.5);
+    mainContent.style.marginLeft = `${
+      nextX + DIVIDER_GUTTER_WIDTH
+    }px`;
+    divider.style.left = `${nextX}px`;
+    dividerValleyShape.style.left = `${nextX}px`;
+    clickBtn.style.left = `${
+      nextX +
+      DIVIDER_GUTTER_WIDTH / 2 +
+      TRANSFER_BUTTON_OFFSET_X
+    }px`;
+    positionInvalidInputPopover();
+
+    return nextX;
+  }
+
+  function setDividerSnapReady(isReady) {
+    if (dividerSnapReady === isReady) return;
+    dividerSnapReady = isReady;
+    document.body.classList.toggle("divider-snap-ready", isReady);
+    updateMediaToolbarAvailability();
+  }
+
+  function cancelDividerSnapAnimation() {
+    if (dividerSnapAnimationFrame !== null) {
+      cancelAnimationFrame(dividerSnapAnimationFrame);
+      dividerSnapAnimationFrame = null;
+    }
+    isDividerSnapping = false;
+    document.body.classList.remove("divider-is-snapping");
+    updateMediaToolbarAvailability();
+  }
+
+  function finishDividerLayoutUpdate() {
+    updateSubtitleScale();
+    updateOutputBounds();
+    resizeWaveformCanvas();
+    resizeTimelineCanvas();
+    updateZoomHighlight();
+  }
+
+  function animateDividerTo(targetX) {
+    cancelDividerSnapAnimation();
+    setDividerSnapReady(false);
+
+    const startX = currentDividerX;
+    const distance = targetX - startX;
+    const reduceMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)"
+    ).matches;
+
+    if (reduceMotion || Math.abs(distance) < 0.5) {
+      applyDividerPosition(targetX);
+      finishDividerLayoutUpdate();
+      return;
+    }
+
+    const startTime = performance.now();
+    isDividerSnapping = true;
+    document.body.classList.add("divider-is-snapping");
+    updateMediaToolbarAvailability();
+
+    function step(now) {
+      const progress = Math.min(
+        1,
+        (now - startTime) / DIVIDER_SNAP_DURATION
+      );
+      const easedProgress = 1 - Math.pow(1 - progress, 4);
+
+      applyDividerPosition(startX + distance * easedProgress);
+      updateOutputBounds();
+
+      if (progress < 1) {
+        dividerSnapAnimationFrame = requestAnimationFrame(step);
+        return;
+      }
+
+      dividerSnapAnimationFrame = null;
+      isDividerSnapping = false;
+      document.body.classList.remove("divider-is-snapping");
+      applyDividerPosition(targetX);
+      updateMediaToolbarAvailability();
+      finishDividerLayoutUpdate();
+    }
+
+    dividerSnapAnimationFrame = requestAnimationFrame(step);
+  }
+
+  function getMagnetizedDividerX(rawX, minX, isSnapReady) {
+    if (!isSnapReady) return rawX;
+
+    const distance = rawX - minX;
+    if (distance <= 0) return minX;
+    if (distance >= DIVIDER_MAGNET_DISTANCE) return rawX;
+
+    const ratio = distance / DIVIDER_MAGNET_DISTANCE;
+    const pullRatio =
+      DIVIDER_MAGNET_PULL_STRENGTH * Math.pow(1 - ratio, 2);
+    const pulledDistance = distance * (1 - pullRatio);
+    return minX + pulledDistance;
+  }
+
+  // 최초 화면에서는 재생바 중심이 화살표 중심과 같은 높이에 오도록
+  // 재생바를 움직이지 않고 미디어 패널과 구분선의 가로 위치를 보정합니다.
+  function alignInitialDividerToTimeline() {
+    const timeline = document.getElementById("timelineContainer");
+    const leftBar = document.getElementById("leftBar");
+    if (!timeline || !leftBar || !clickBtn) return;
+
+    const timelineRect = timeline.getBoundingClientRect();
+    const controlRect = clickBtn.getBoundingClientRect();
+    const timelineCenterY = timelineRect.top + timelineRect.height / 2;
+    const controlCenterY = controlRect.top + controlRect.height / 2;
+    const verticalDelta = controlCenterY - timelineCenterY;
+
+    if (Math.abs(verticalDelta) < 0.5) return;
+
+    const leftBarWidth = leftBar.getBoundingClientRect().width;
+    const currentMediaWidth = videoPanel.getBoundingClientRect().width;
+    const widthDelta = verticalDelta * (16 / 9);
+    const maxMediaWidth = Math.min(
+      MAX_MEDIA_PANEL_WIDTH,
+      window.innerWidth -
+        leftBarWidth -
+        TRANSFER_CONTROL_SAFETY_SPACE
+    );
+    const desiredMediaWidth = Math.max(
+      0,
+      Math.min(currentMediaWidth + widthDelta, maxMediaWidth)
+    );
+    const desiredMediaRightX = leftBarWidth + desiredMediaWidth;
+    const desiredDividerX =
+      desiredMediaRightX - DIVIDER_MEDIA_OVERLAP;
+
+    applyDividerPosition(desiredDividerX);
+
+    requestAnimationFrame(() => {
+      resizeTimelineCanvas();
+      resizeWaveformCanvas();
+      updateSubtitleScale();
+    });
+  }
+
+  requestAnimationFrame(alignInitialDividerToTimeline);
+
+  divider.addEventListener("pointerdown", (e) => {
+    if (
+      isDragging ||
+      (e.pointerType === "mouse" && e.button !== 0)
+    ) {
+      return;
+    }
+
+    // Keep the resize gesture owned by the divider. Without cancelling the
+    // native pointer action, moving across the workspace starts selecting or
+    // dragging input text underneath the pointer.
+    e.preventDefault();
+    cancelDividerSnapAnimation();
+    setDividerSnapReady(false);
+    isDragging = true;
+    dividerPointerId = e.pointerId;
+    dividerDragOffsetX = e.clientX - divider.getBoundingClientRect().left;
+    divider.classList.add("is-dragging");
+    document.body.classList.add("divider-is-dragging");
+    divider.setPointerCapture(e.pointerId);
+  });
+
+  function finishDividerDrag(e, allowSnap = true) {
+    if (
+      !isDragging ||
+      (e && dividerPointerId !== null && e.pointerId !== dividerPointerId)
+    ) {
+      return;
+    }
+
+    isDragging = false;
+    divider.classList.remove("is-dragging");
+    document.body.classList.remove("divider-is-dragging");
+
+    if (
+      dividerPointerId !== null &&
+      divider.hasPointerCapture(dividerPointerId)
+    ) {
+      divider.releasePointerCapture(dividerPointerId);
+    }
+    dividerPointerId = null;
+
+    if (allowSnap && dividerSnapReady) {
+      const { minX } = getDividerBounds();
+      animateDividerTo(minX);
+      return;
+    }
+
+    setDividerSnapReady(false);
+    finishDividerLayoutUpdate();
+  }
+
+  divider.addEventListener("pointerup", (e) => finishDividerDrag(e));
+  divider.addEventListener("pointercancel", (e) =>
+    finishDividerDrag(e, false)
+  );
+  divider.addEventListener("lostpointercapture", (e) =>
+    finishDividerDrag(e, false)
+  );
+
+  // 미디어 패널 크기를 바꾸고 관련 오버레이와 캔버스를 다시 계산합니다.
+  divider.addEventListener("pointermove", (e) => {
+    if (!isDragging || e.pointerId !== dividerPointerId) return;
+    e.preventDefault();
+
+    const { minX, maxX } = getDividerBounds();
+    const rawX = Math.max(
+      minX,
+      Math.min(e.clientX - dividerDragOffsetX, maxX)
+    );
+    const snapDistance = rawX - minX;
+
+    if (
+      !dividerSnapReady &&
+      snapDistance <= DIVIDER_SNAP_DISTANCE
+    ) {
+      setDividerSnapReady(true);
+    } else if (
+      dividerSnapReady &&
+      snapDistance > DIVIDER_SNAP_DISTANCE
+    ) {
+      setDividerSnapReady(false);
+    }
+
+    const desiredX = getMagnetizedDividerX(
+      rawX,
+      minX,
+      dividerSnapReady
+    );
+    applyDividerPosition(desiredX);
 
     updateSubtitleScale();
     updateOutputBounds();
     resizeWaveformCanvas();
-
-    if (audioBuffer) {
-      const duration = video.duration;
-      const totalSamples = audioBuffer.length;
-      const currentSample =
-        duration > 0 ? (video.currentTime / duration) * totalSamples : 0;
-
-      const segmentLength = Math.floor(totalSamples / zoomLevel);
-      let desiredPan;
-      if (segmentLength >= totalSamples) {
-        desiredPan = 0;
-      } else {
-        desiredPan = currentSample - segmentLength / 2;
-      }
-      if (desiredPan < 0) desiredPan = 0;
-      if (desiredPan > totalSamples - segmentLength) {
-        desiredPan = totalSamples - segmentLength;
-      }
-
-      panOffset = desiredPan;
-      drawWaveform();
-      updateZoomHighlight();
-
-      const phW = playheadDiv.offsetWidth;
-      const visW = timelineContainer.clientWidth;
-
-      let relX;
-      if (segmentLength >= totalSamples) {
-        relX = currentSample / totalSamples;
-      } else if (
-        panOffsetTarget > 0 &&
-        panOffsetTarget < totalSamples - segmentLength
-      ) {
-        relX = 0.5;
-      } else {
-        relX = (currentSample - panOffset) / segmentLength;
-      }
-
-      let cssX = relX * (visW - phW);
-
-      cssX = Math.max(0, Math.min(visW - phW, cssX));
-      setPlayheadPositions(cssX);
-
-    }
   });
 
   // 언어 사이에서 시간 구조를 드래그할 때 보여주는 시각 피드백입니다.
-  langButtons.forEach((btn) => {
-    btn.addEventListener("dragover", (e) => e.preventDefault());
-
-    btn.addEventListener("dragenter", (e) => {
-      const src = dragSourceBtn;
-      if (
-        src &&
-        btn !== src &&
-        src.classList.contains("active") &&
-        btn.classList.contains("active")
-      ) {
-        btn.classList.add("drop-target");
-      }
-    });
-
-    btn.addEventListener("dragleave", (e) =>
-      btn.classList.remove("drop-target")
-    );
-    btn.addEventListener("drop", (e) =>
-      btn.classList.remove("drop-target")
-    );
-  });
+  const languageToggle = document.querySelector(".language-toggle");
+  const languageDropIndicator = document.createElement("div");
+  languageDropIndicator.className = "language-drop-indicator";
+  languageDropIndicator.hidden = true;
+  languageToggle.appendChild(languageDropIndicator);
 
   // 언어 드래그 앤 드롭의 현재 출발/대상 상태입니다.
-  let draggingLang = null;
-  let dragSourceBtn = null;
-  let currentTarget = null;
+  function getVisibleLanguageButtons() {
+    return Array.from(languageToggle.querySelectorAll(":scope > .lang-btn")).filter(
+      (btn) =>
+        btn.classList.contains("active") &&
+        window.getComputedStyle(btn).display !== "none"
+    );
+  }
+
+  function canReorderLanguages() {
+    return getVisibleLanguageButtons().length > 1;
+  }
+
+  function clearLanguageDropFeedback() {
+    languageToggle
+      .querySelectorAll(".lang-btn.drop-target")
+      .forEach((btn) => btn.classList.remove("drop-target"));
+    languageDropIndicator.hidden = true;
+    if (dragSourceBtn) {
+      dragSourceBtn.classList.remove("language-remove-target");
+    }
+  }
+
+  function showLanguageDropIndicator(beforeBtn) {
+    if (!canReorderLanguages()) {
+      languageDropIndicator.hidden = true;
+      return;
+    }
+
+    const toggleRect = languageToggle.getBoundingClientRect();
+    const visibleButtons = getVisibleLanguageButtons().filter(
+      (btn) => btn !== dragSourceBtn
+    );
+    let indicatorY;
+
+    if (beforeBtn) {
+      indicatorY = beforeBtn.getBoundingClientRect().top - toggleRect.top - 4;
+    } else {
+      const lastBtn = visibleButtons[visibleButtons.length - 1];
+      const anchor = lastBtn || document.getElementById("addLanguageButton");
+      indicatorY = anchor.getBoundingClientRect().bottom - toggleRect.top + 4;
+    }
+
+    languageDropIndicator.style.top = `${indicatorY}px`;
+    languageDropIndicator.hidden = false;
+  }
+
+  function updateLanguageDropIntent(e) {
+    if (
+      !dragSourceBtn ||
+      !dragSourceBtn.classList.contains("active") ||
+      !canReorderLanguages()
+    ) {
+      languageDropIntent = null;
+      clearLanguageDropFeedback();
+      e.dataTransfer.dropEffect = "none";
+      return;
+    }
+
+    const targetBtn = getLangBtnAtPoint(e.target, e.clientX, e.clientY);
+    if (
+      targetBtn &&
+      targetBtn !== dragSourceBtn &&
+      targetBtn.classList.contains("active")
+    ) {
+      languageDropIntent = { type: "copy", targetBtn };
+      clearLanguageDropFeedback();
+      targetBtn.classList.add("drop-target");
+      e.dataTransfer.dropEffect = "copy";
+      return;
+    }
+
+    if (targetBtn === dragSourceBtn) {
+      languageDropIntent = null;
+      clearLanguageDropFeedback();
+      return;
+    }
+
+    const visibleButtons = getVisibleLanguageButtons();
+    const sourceIndex = visibleButtons.indexOf(dragSourceBtn);
+    const sourceWasLast =
+      visibleButtons[visibleButtons.length - 1] === dragSourceBtn;
+    const otherButtons = visibleButtons.filter(
+      (btn) => btn !== dragSourceBtn
+    );
+    const beforeBtn =
+      otherButtons.find((btn) => {
+        const rect = btn.getBoundingClientRect();
+        return e.clientY < rect.top + rect.height / 2;
+      }) || null;
+    const insertionIndex = beforeBtn
+      ? otherButtons.indexOf(beforeBtn)
+      : otherButtons.length;
+    const sourceRect = dragSourceBtn.getBoundingClientRect();
+
+    // 최하단 언어를 더 아래로 끌면 같은 자리에 재삽입하지 않고 삭제합니다.
+    if (
+      sourceWasLast &&
+      beforeBtn === null &&
+      e.clientY > sourceRect.bottom + 4
+    ) {
+      languageDropIntent = { type: "remove" };
+      clearLanguageDropFeedback();
+      dragSourceBtn.classList.add("language-remove-target");
+      e.dataTransfer.dropEffect = "move";
+      return;
+    }
+
+    // 원본 위치와 삽입 결과가 같으면 실제 순서 변화가 없으므로 표시하지 않습니다.
+    if (insertionIndex === sourceIndex) {
+      languageDropIntent = null;
+      clearLanguageDropFeedback();
+      e.dataTransfer.dropEffect = "none";
+      return;
+    }
+
+    languageDropIntent = { type: "reorder", beforeBtn };
+    clearLanguageDropFeedback();
+    showLanguageDropIndicator(beforeBtn);
+    e.dataTransfer.dropEffect = "move";
+  }
+
+  languageToggle.addEventListener("dragover", (e) => {
+    if (!dragSourceBtn) return;
+
+    if (!canReorderLanguages()) {
+      languageDropIntent = null;
+      clearLanguageDropFeedback();
+      e.dataTransfer.dropEffect = "none";
+      return;
+    }
+
+    e.preventDefault();
+    updateLanguageDropIntent(e);
+  });
+
+  languageToggle.addEventListener("dragleave", (e) => {
+    if (!languageToggle.contains(e.relatedTarget)) {
+      languageDropIntent = null;
+      clearLanguageDropFeedback();
+    }
+  });
+
+  document.addEventListener(
+    "dragover",
+    (e) => {
+      if (
+        !dragSourceBtn ||
+        isPointInsideLanguageToggle(e.clientX, e.clientY)
+      ) {
+        return;
+      }
+
+      e.preventDefault();
+      e.stopPropagation();
+      languageDropIntent = { type: "remove" };
+      clearLanguageDropFeedback();
+      dragSourceBtn.classList.add("language-remove-target");
+      e.dataTransfer.dropEffect = "move";
+    },
+    true
+  );
+
+  document.addEventListener(
+    "drop",
+    (e) => {
+      if (
+        !dragSourceBtn ||
+        isPointInsideLanguageToggle(e.clientX, e.clientY)
+      ) {
+        return;
+      }
+
+      e.preventDefault();
+      e.stopPropagation();
+      removeLanguageButton(dragSourceBtn);
+      resetDragState();
+    },
+    true
+  );
+
+  languageToggle.addEventListener("drop", (e) => {
+    if (!dragSourceBtn || !languageDropIntent) return;
+
+    if (
+      languageDropIntent.type === "reorder" &&
+      !canReorderLanguages()
+    ) {
+      resetDragState();
+      return;
+    }
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (languageDropIntent.type === "copy") {
+      const targetBtn = languageDropIntent.targetBtn;
+      const targetLang = targetBtn.dataset.target;
+      const srcLang = e.dataTransfer.getData("text/plain") || draggingLang;
+
+      if (srcLang && srcLang !== targetLang) {
+        subtitleGenerator.duplicateSectionsToTarget(
+          codeMap[srcLang],
+          codeMap[targetLang]
+        );
+        markWorkspaceDirty();
+      }
+    } else if (languageDropIntent.type === "remove") {
+      removeLanguageButton(dragSourceBtn);
+    } else {
+      const addBtn = document.getElementById("addLanguageButton");
+      languageToggle.insertBefore(
+        dragSourceBtn,
+        languageDropIntent.beforeBtn || addBtn
+      );
+      reorderSectionContainers();
+      updateBookmarks();
+      markWorkspaceDirty();
+    }
+
+    resetDragState();
+  });
 
   // 사용자가 입력칸과 상호작용하는 즉시 검증 강조를 지웁니다.
   document.addEventListener(
@@ -2446,17 +3395,21 @@ ${styleLines}
 
   // 편집 섹션 순서를 화면에 보이는 언어 버튼 순서와 맞춥니다.
   function reorderSectionContainers() {
-    const parent = document.querySelector(".main-content .container");
-    const outputEl = document.getElementById("output");
+    const parent = document.getElementById("sectionContainers");
 
     document
       .querySelectorAll(".language-toggle .lang-btn")
       .forEach((btn) => {
-        if (btn.style.display !== "flex") return;
+        if (
+          !btn.classList.contains("active") ||
+          window.getComputedStyle(btn).display === "none"
+        ) {
+          return;
+        }
         const section = document.getElementById(
           `${btn.dataset.target}Container`
         );
-        if (section) parent.insertBefore(section, outputEl);
+        if (section) parent.appendChild(section);
       });
   }
 
@@ -2483,6 +3436,7 @@ ${styleLines}
 
     reorderSectionContainers();
     document.getElementById("languageModal").classList.add("hidden");
+    document.body.classList.remove("language-modal-open");
     subtitleGenerator.toggleLanguageSections();
 
     updateBookmarks();
@@ -2546,6 +3500,7 @@ ${styleLines}
   function closeLangModal() {
     modal.classList.add("hidden");
     modalBackdrop.classList.add("hidden");
+    document.body.classList.remove("language-modal-open");
 
     toggleBackdrop.style.display = "none";
 
@@ -2624,6 +3579,7 @@ ${styleLines}
         pickrTargetBtn.style.backgroundImage = `linear-gradient(to right, ${hex} 20%, transparent 20%)`;
 
         pickrTargetBtn.dataset.pickrColor = hex;
+        markWorkspaceDirty();
       });
 
       pickr.on("show", () => {
@@ -2665,7 +3621,10 @@ ${styleLines}
         removeCloseListener = () => pickr.hide();
         pickrTargetBtn.addEventListener("click", removeCloseListener);
 
-        pickr.setColor(pickrTargetBtn.dataset.pickrColor || "#FFFF00");
+        pickr.setColor(
+          pickrTargetBtn.dataset.pickrColor || "#FFFF00",
+          true
+        );
       });
 
       pickr.on("hide", () => {
@@ -2884,23 +3843,13 @@ ${styleLines}
     playheadReqId = requestAnimationFrame(updatePlayhead);
   }
 
-  // 정밀 탐색 중 아주 짧은 재생으로 브라우저가 비디오 프레임을 갱신하게 합니다.
-  let singleFrameTimeout;
-
-  // 파형을 클릭하면 즉시 이동하고 아주 짧은 프레임 구간을 미리 봅니다.
+  // 파형 탐색은 재생 상태를 만들지 않고 일시정지된 프레임만 갱신합니다.
   waveformCanvas.addEventListener("mousedown", (e) => {
     if (!audioBuffer) return;
+    e.preventDefault();
     isSeeking = true;
 
     seekOnCanvas(e);
-
-    if (singleFrameTimeout) clearTimeout(singleFrameTimeout);
-
-    video.play();
-
-    singleFrameTimeout = setTimeout(() => {
-      video.pause();
-    }, 10);
   });
 
   // 파형 바깥으로 드래그하면 확대된 구간을 자동 스크롤합니다.
@@ -2915,13 +3864,6 @@ ${styleLines}
         autoScrollInterval = null;
       }
       seekOnCanvas(e);
-
-      if (singleFrameTimeout) clearTimeout(singleFrameTimeout);
-
-      video.play();
-      singleFrameTimeout = setTimeout(() => {
-        video.pause();
-      }, 10);
     } else {
       if (!autoScrollInterval) {
         const direction = e.clientX < rect.left ? -1 : 1;
@@ -2931,15 +3873,37 @@ ${styleLines}
 
           const deltaSamples =
             (SCROLL_SPEED_PX / waveformCanvas.width) * segmentLength;
-          panOffset = Math.max(
+          const nextPanOffset = Math.max(
             0,
             Math.min(
               totalSamples - segmentLength,
               panOffset + direction * deltaSamples
             )
           );
+          commitWaveformPan(nextPanOffset);
           drawWaveform();
           updateZoomHighlight();
+
+          // 포인터가 파형 밖에 머무는 동안에는 재생헤드를 해당 가장자리에
+          // 고정하고, 자동 스크롤로 새롭게 드러난 시간까지 함께 이동합니다.
+          const edgeSample = Math.max(
+            0,
+            Math.min(
+              totalSamples,
+              direction < 0
+                ? nextPanOffset
+                : nextPanOffset + segmentLength
+            )
+          );
+          const edgeTime =
+            (edgeSample / totalSamples) * video.duration;
+          const edgeX =
+            direction < 0 ? 0 : waveformContainer.clientWidth;
+
+          setPlayheadPositions(edgeX, edgeTime);
+          video.currentTime = edgeTime;
+          drawTimeline();
+          updateTimeDisplay();
         }, SCROLL_INTERVAL_MS);
       }
     }
@@ -2949,25 +3913,23 @@ ${styleLines}
     if (isSeeking) {
       isSeeking = false;
 
-      if (singleFrameTimeout) {
-        clearTimeout(singleFrameTimeout);
-        singleFrameTimeout = null;
-      }
+      video.pause();
+      cancelAnimationFrame(playheadReqId);
+      playheadReqId = null;
 
       if (autoScrollInterval) {
         clearInterval(autoScrollInterval);
         autoScrollInterval = null;
-      }
-
-      if (singleFrameTimeout) {
-        clearTimeout(singleFrameTimeout);
-        singleFrameTimeout = null;
       }
     }
   });
 
   // 파형의 x좌표를 샘플 위치와 미디어 currentTime으로 변환합니다.
   function seekOnCanvas(event) {
+    video.pause();
+    cancelAnimationFrame(playheadReqId);
+    playheadReqId = null;
+
     const rect = waveformCanvas.getBoundingClientRect();
     const totalSamples = audioBuffer.length;
     const width = waveformCanvas.width;
@@ -2987,7 +3949,7 @@ ${styleLines}
       newPan = startSample;
     }
     newPan = Math.max(0, Math.min(newPan, totalSamples - segmentLength));
-    panOffset = newPan;
+    commitWaveformPan(newPan);
 
     drawWaveform();
     updateZoomHighlight();
@@ -3013,11 +3975,13 @@ ${styleLines}
     e.preventDefault();
 
     const totalSamples = audioBuffer.length;
-    const width = waveformContainer.clientWidth;
+    const duration = video.duration;
+    if (!Number.isFinite(duration) || duration <= 0) return;
 
-    const playheadStyleLeft =
-      parseFloat(waveformPlayheadDiv.style.left) || 0;
-    const headRatio = playheadStyleLeft / width;
+    const currentSample = Math.max(
+      0,
+      Math.min(totalSamples, (video.currentTime / duration) * totalSamples)
+    );
 
     const zoomFactor = 1.2;
     let newZoom =
@@ -3025,15 +3989,18 @@ ${styleLines}
     newZoom = Math.max(minZoom, Math.min(newZoom, maxZoom));
 
     const oldZoom = zoomLevel;
-    zoomLevel = newZoom;
-
     const oldSegment = totalSamples / oldZoom;
+    const headRatio = Math.max(
+      0,
+      Math.min(1, (currentSample - panOffset) / oldSegment)
+    );
+
+    zoomLevel = newZoom;
     const newSegment = totalSamples / newZoom;
 
-    let newPan =
-      panOffset + headRatio * oldSegment - headRatio * newSegment;
+    let newPan = currentSample - headRatio * newSegment;
     newPan = Math.max(0, Math.min(newPan, totalSamples - newSegment));
-    panOffset = newPan;
+    commitWaveformPan(newPan);
 
     drawWaveform();
 
@@ -3068,10 +4035,20 @@ ${styleLines}
   document.body.addEventListener("drop", (e) => {
     if (e.target.matches(".time, .last-time, #time-display")) {
       e.preventDefault();
-      const text = e.dataTransfer.getData("text/plain");
+      const text = sanitizeTimeCharacters(
+        e.dataTransfer.getData("text/plain")
+      );
       e.target.value = text;
-      e.target.focus();
-      e.target.dispatchEvent(new Event("input", { bubbles: true }));
+
+      if (e.target === timeDisplay) {
+        // Dropped timecodes are completed immediately: triggering blur applies
+        // the value to video.currentTime and leaves the field out of edit mode.
+        timeDisplay.focus({ preventScroll: true });
+        timeDisplay.blur();
+      } else {
+        e.target.focus();
+        e.target.dispatchEvent(new Event("input", { bubbles: true }));
+      }
     }
   });
 });

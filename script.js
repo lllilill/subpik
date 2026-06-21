@@ -217,6 +217,8 @@ document.addEventListener("DOMContentLoaded", () => {
   let audioBuffer = null;
   let isPlaying = false;
   let playheadReqId = null;
+  let waveformPanReqId = null;
+  let waveformPanPending = false;
   let zoomLevel = 1;
   let panOffset = 0;
 
@@ -1093,6 +1095,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     zoomLevel = 1;
     panOffset = 0;
+    panOffsetTarget = 0;
+    cancelAnimationFrame(waveformPanReqId);
+    waveformPanReqId = null;
+    waveformPanPending = false;
 
     file
       .arrayBuffer()
@@ -1137,6 +1143,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   video.addEventListener("play", () => {
     if (audioBuffer) {
+      cancelAnimationFrame(waveformPanReqId);
+      waveformPanReqId = null;
       updatePlayhead();
     }
   });
@@ -1188,6 +1196,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
   video.addEventListener("pause", () => {
     cancelAnimationFrame(playheadReqId);
+    playheadReqId = null;
+    if (waveformPanPending) {
+      startWaveformPanAnimation();
+    }
     renderSamiOverlay(video.currentTime);
   });
 
@@ -1209,7 +1221,11 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!isNaN(newTime)) {
       video.currentTime = newTime;
       drawTimeline();
-      updatePlayhead();
+      if (audioBuffer) {
+        centerWaveformAtTime(newTime);
+      } else {
+        setPlayheadPositions(0, newTime);
+      }
       video.play();
       clearTimeout(scrubTimeout);
       scrubTimeout = setTimeout(() => {
@@ -1277,7 +1293,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       drawTimeline();
       if (audioBuffer) {
-        syncPlayheadsToCurrentWaveformView(targetTime);
+        centerWaveformAtTime(targetTime);
       } else {
         setPlayheadPositions(0, targetTime);
       }
@@ -1331,6 +1347,9 @@ document.addEventListener("DOMContentLoaded", () => {
       zoomLevel = 1;
       panOffset = 0;
       panOffsetTarget = 0;
+      cancelAnimationFrame(waveformPanReqId);
+      waveformPanReqId = null;
+      waveformPanPending = false;
       waveformContainer.style.visibility = "visible";
       resizeWaveformCanvas();
       playheadDiv.style.display = "none";
@@ -1381,6 +1400,77 @@ document.addEventListener("DOMContentLoaded", () => {
     const highlight = document.getElementById("zoomHighlight");
     highlight.style.left = `${startPct}%`;
     highlight.style.width = `${widthPct}%`;
+  }
+
+  // 전체 재생바나 시간 입력으로 이동할 때 파형 중앙을 새 목표 위치로 설정합니다.
+  function centerWaveformAtTime(mediaTime) {
+    if (
+      !audioBuffer ||
+      !Number.isFinite(video.duration) ||
+      video.duration <= 0
+    ) {
+      return;
+    }
+
+    const totalSamples = audioBuffer.length;
+    const currentSample = Math.max(
+      0,
+      Math.min(totalSamples, (mediaTime / video.duration) * totalSamples)
+    );
+    const segmentLength = Math.floor(totalSamples / zoomLevel);
+    const maxPanOffset = Math.max(0, totalSamples - segmentLength);
+    const desiredPanOffset =
+      segmentLength >= totalSamples
+        ? 0
+        : currentSample - segmentLength / 2;
+
+    panOffsetTarget = Math.max(
+      0,
+      Math.min(desiredPanOffset, maxPanOffset)
+    );
+    waveformPanPending = true;
+
+    syncPlayheadsToCurrentWaveformView(mediaTime);
+    startWaveformPanAnimation();
+  }
+
+  // 재생이 멈춘 뒤에도 파형 표시 영역이 목표 위치까지 부드럽게 이동하도록 합니다.
+  function startWaveformPanAnimation() {
+    if (waveformPanReqId !== null || !video.paused) return;
+    waveformPanReqId = requestAnimationFrame(animateWaveformPanToTarget);
+  }
+
+  function animateWaveformPanToTarget() {
+    waveformPanReqId = null;
+    if (!audioBuffer || !video.paused) return;
+
+    panOffset += (panOffsetTarget - panOffset) * panSmooth;
+    const hasReachedTarget = Math.abs(panOffset - panOffsetTarget) < 0.5;
+    if (hasReachedTarget) {
+      panOffset = panOffsetTarget;
+      waveformPanPending = false;
+    }
+
+    drawWaveform();
+    updateZoomHighlight();
+    syncPlayheadsToCurrentWaveformView(video.currentTime);
+
+    if (!hasReachedTarget) {
+      waveformPanReqId = requestAnimationFrame(animateWaveformPanToTarget);
+    }
+  }
+
+  // 확대나 직접 탐색처럼 사용자가 뷰포트를 즉시 바꾸는 경우에는
+  // 이전 확대 배율에서 계산된 이동 목표가 새 위치를 덮어쓰지 않게 정리합니다.
+  function commitWaveformPan(nextPanOffset) {
+    if (waveformPanReqId !== null) {
+      cancelAnimationFrame(waveformPanReqId);
+      waveformPanReqId = null;
+    }
+
+    waveformPanPending = false;
+    panOffset = nextPanOffset;
+    panOffsetTarget = nextPanOffset;
   }
 
   // The overview playhead uses the full media duration, while the waveform
@@ -2984,7 +3074,7 @@ ${styleLines}
         desiredPan = totalSamples - segmentLength;
       }
 
-      panOffset = desiredPan;
+      commitWaveformPan(desiredPan);
       drawWaveform();
       updateZoomHighlight();
 
@@ -3761,13 +3851,14 @@ ${styleLines}
 
           const deltaSamples =
             (SCROLL_SPEED_PX / waveformCanvas.width) * segmentLength;
-          panOffset = Math.max(
+          const nextPanOffset = Math.max(
             0,
             Math.min(
               totalSamples - segmentLength,
               panOffset + direction * deltaSamples
             )
           );
+          commitWaveformPan(nextPanOffset);
           drawWaveform();
           updateZoomHighlight();
         }, SCROLL_INTERVAL_MS);
@@ -3817,7 +3908,7 @@ ${styleLines}
       newPan = startSample;
     }
     newPan = Math.max(0, Math.min(newPan, totalSamples - segmentLength));
-    panOffset = newPan;
+    commitWaveformPan(newPan);
 
     drawWaveform();
     updateZoomHighlight();
@@ -3843,11 +3934,13 @@ ${styleLines}
     e.preventDefault();
 
     const totalSamples = audioBuffer.length;
-    const width = waveformContainer.clientWidth;
+    const duration = video.duration;
+    if (!Number.isFinite(duration) || duration <= 0) return;
 
-    const playheadStyleLeft =
-      parseFloat(waveformPlayheadDiv.style.left) || 0;
-    const headRatio = playheadStyleLeft / width;
+    const currentSample = Math.max(
+      0,
+      Math.min(totalSamples, (video.currentTime / duration) * totalSamples)
+    );
 
     const zoomFactor = 1.2;
     let newZoom =
@@ -3855,15 +3948,18 @@ ${styleLines}
     newZoom = Math.max(minZoom, Math.min(newZoom, maxZoom));
 
     const oldZoom = zoomLevel;
-    zoomLevel = newZoom;
-
     const oldSegment = totalSamples / oldZoom;
+    const headRatio = Math.max(
+      0,
+      Math.min(1, (currentSample - panOffset) / oldSegment)
+    );
+
+    zoomLevel = newZoom;
     const newSegment = totalSamples / newZoom;
 
-    let newPan =
-      panOffset + headRatio * oldSegment - headRatio * newSegment;
+    let newPan = currentSample - headRatio * newSegment;
     newPan = Math.max(0, Math.min(newPan, totalSamples - newSegment));
-    panOffset = newPan;
+    commitWaveformPan(newPan);
 
     drawWaveform();
 

@@ -2430,35 +2430,43 @@ textarea {
 }
 
 .media-upload-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 42px;
-  height: 42px;
-  margin-bottom: 10px;
+  display: block;
+  margin-bottom: 12px;
   color: #60a5fa;
-  background: #102238;
-  border: 1px dashed #49647f;
-  border-radius: 12px;
+  font-family: "Material Symbols Outlined" !important;
+  font-size: 40px !important;
+  font-style: normal;
+  font-weight: normal !important;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  font-feature-settings: "liga";
+  font-variation-settings:
+    "FILL" 0,
+    "wght" 400,
+    "GRAD" 0,
+    "opsz" 48;
+  -webkit-font-feature-settings: "liga";
+  -webkit-font-smoothing: antialiased;
+  transition: color 0.16s ease, transform 0.16s ease,
+    font-variation-settings 0.16s ease;
 }
 
-.media-upload-icon .material-icons {
-  color: currentColor;
-  font-size: 22px !important;
-}
-
-.media-upload-icon svg {
-  width: 22px;
-  height: 22px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.7;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+#video-container:hover .media-upload-icon {
+  color: #7db7ff;
+  transform: scale(1.08);
+  font-variation-settings:
+    "FILL" 0,
+    "wght" 700,
+    "GRAD" 0,
+    "opsz" 48;
 }
 
 .media-upload-content strong {
-  margin-bottom: 5px;
+  margin-bottom: 4px;
   color: var(--text-primary);
   font-size: 15px;
   line-height: 1.25;
@@ -2466,30 +2474,9 @@ textarea {
 
 .media-upload-description {
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700 !important;
   line-height: 1.4;
-}
-
-.media-select-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 68px;
-  height: 30px;
-  margin-top: 12px;
-  padding: 0 12px;
-  box-sizing: border-box;
-  color: #fff;
-  background: var(--accent);
-  border-radius: 6px;
-  box-shadow: 0 5px 14px rgba(59, 130, 246, 0.18);
-  font-size: 11px;
-  font-weight: 800 !important;
-}
-
-#video-container:hover .media-select-button {
-  background: var(--accent-hover);
 }
 
 .video-panel #timelineContainer {
@@ -2696,14 +2683,8 @@ body.divider-is-snapping .video-panel #player-container {
   }
 
   .media-upload-icon {
-    width: 36px;
-    height: 36px;
-    margin-bottom: 7px;
-  }
-
-  .media-select-button {
-    height: 27px;
-    margin-top: 8px;
+    margin-bottom: 8px;
+    font-size: 34px !important;
   }
 }
 

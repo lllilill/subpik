@@ -378,6 +378,8 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     document.body.classList.add("modal-open");
+    clickBtn?.setAttribute("aria-label", "입력 오류 닫기");
+    clickBtn?.setAttribute("aria-expanded", "true");
 
     document.getElementById("download-btn").disabled = true;
   }
@@ -386,6 +388,8 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("invalidInputOverlay").classList.add("hidden");
     document.getElementById("invalidInputPopup").classList.add("hidden");
     document.body.classList.remove("modal-open");
+    clickBtn?.setAttribute("aria-label", "자막 생성 및 출력 전환");
+    clickBtn?.setAttribute("aria-expanded", "false");
   }
 
   // 화살표 원의 현재 위치를 기준으로 말풍선과 꼬리를 함께 배치합니다.
@@ -594,7 +598,18 @@ document.addEventListener("DOMContentLoaded", () => {
   let clickToggle = false;
 
   if (clickBtn) {
+    clickBtn.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      clickBtn.click();
+    });
+
     clickBtn.addEventListener("click", () => {
+      if (document.body.classList.contains("modal-open")) {
+        closeInvalidInputModal();
+        return;
+      }
+
       subtitleGenerator.generateSubtitles(false);
 
       if (document.body.classList.contains("modal-open")) {
@@ -706,11 +721,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }px`;
   }
 
-  // 사용자가 팝업이나 배경을 닫으면 검증 안내를 닫습니다.
-  document
-    .getElementById("invalidInputClose")
-    .addEventListener("click", closeInvalidInputModal);
-
+  // 사용자가 팝업 바깥을 누르거나 Escape를 누르면 검증 안내를 닫습니다.
   document.addEventListener("pointerdown", (event) => {
     const popup = document.getElementById("invalidInputPopup");
     if (popup.classList.contains("hidden")) return;

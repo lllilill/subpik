@@ -32,7 +32,7 @@
       src="https://unpkg.com/@lottiefiles/dotlottie-wc@latest/dist/dotlottie-wc.js"
     ></script>
     <!-- 레이아웃, 컨트롤, 애니메이션 상태를 담당하는 로컬 스타일시트입니다. -->
-    <link rel="stylesheet" href="styles.css?v=20260621-8" />
+    <link rel="stylesheet" href="styles.css?v=20260621-9" />
 
   </head>
   <body>
@@ -168,8 +168,16 @@
     </svg>
 
     <!-- 커스텀 애니메이션 아이콘을 가진 생성/출력 전환 버튼입니다. -->
-    <div class="click-anim-container" data-state="0">
-      <div class="click-anim-inner">
+    <div
+      class="click-anim-container"
+      data-state="0"
+      role="button"
+      tabindex="0"
+      aria-label="자막 생성 및 출력 전환"
+      aria-controls="invalidInputPopup"
+      aria-expanded="false"
+    >
+      <div class="click-anim-inner" aria-hidden="true">
         <div class="arrow"></div>
         <div class="dash"></div>
         <div class="arrow arrow-right"></div>
@@ -236,16 +244,6 @@
           <h2 id="invalidInputTitle">입력 오류</h2>
           <p id="invalidInputSummary">입력 항목을 확인해 주세요</p>
         </div>
-        <button
-          id="invalidInputClose"
-          class="center-popup-close"
-          type="button"
-          aria-label="닫기"
-        >
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="m6 6 12 12M18 6 6 18" />
-          </svg>
-        </button>
       </header>
 
       <div class="center-popup-content">
@@ -253,6 +251,6 @@
       </div>
     </div>
     <!-- 앱의 주요 동작을 담당하는 스크립트입니다. -->
-    <script src="script.js?v=20260621-17"></script>
+    <script src="script.js?v=20260621-21"></script>
   </body>
 </html>

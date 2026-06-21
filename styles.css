@@ -1139,63 +1139,126 @@ button,
   animation: slideUnfill 0.3s forwards ease-in;
 }
 
-/* 검증 오류를 보여주는 중앙 팝업 오버레이입니다. */
+/* 화살표와 말풍선만 남기고 작업 화면을 차분하게 가리는 검증 오버레이입니다. */
 .center-popup-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.5);
-  z-index: 2000;
-  transition: opacity 0.2s ease;
+  inset: 0;
+  z-index: 30000;
+  background: rgba(3, 12, 24, 0.7);
+  backdrop-filter: blur(2px);
+  opacity: 1;
+  pointer-events: auto;
+  transition: opacity 0.18s ease;
 }
+
 .center-popup-overlay.hidden {
   opacity: 0;
   pointer-events: none;
 }
-.center-popup-overlay:not(.hidden) {
-  opacity: 1;
-  pointer-events: auto;
-}
 
-/* 검증 팝업의 외곽 컨테이너입니다. */
+/* 생성 화살표 옆에 붙는 검증 말풍선의 외곽 컨테이너입니다. */
 .center-popup {
+  --popover-tail-y: 50%;
   position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 300px;
+  top: 16px;
+  left: 16px;
+  width: min(520px, calc(100vw - 32px));
+  box-sizing: border-box;
   background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
-  z-index: 2001;
+  border: 1px solid #e7eaf0;
+  border-radius: 16px;
+  box-shadow: 0 20px 48px rgba(0, 10, 25, 0.3);
+  z-index: 30020;
   transition: opacity 0.2s ease, transform 0.2s ease;
 }
 .center-popup.hidden {
   opacity: 0;
   pointer-events: none;
-  transform: translate(-50%, -60%);
+  transform: translateY(-6px) scale(0.985);
 }
 .center-popup:not(.hidden) {
   opacity: 1;
   pointer-events: auto;
-  transform: translate(-50%, -50%);
+  transform: none;
+}
+
+.center-popup.positioning {
+  visibility: hidden;
+}
+
+.center-popup::before,
+.center-popup::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+}
+
+.center-popup::before {
+  top: calc(var(--popover-tail-y) - 15px);
+  width: 16px;
+  height: 30px;
+  background: #e7eaf0;
+}
+
+.center-popup::after {
+  top: calc(var(--popover-tail-y) - 13px);
+  width: 15px;
+  height: 26px;
+  background: #fff;
+}
+
+.center-popup[data-placement="right"]::before {
+  left: -16px;
+  clip-path: polygon(100% 0, 100% 100%, 0 50%);
+}
+
+.center-popup[data-placement="right"]::after {
+  left: -14px;
+  clip-path: polygon(100% 0, 100% 100%, 0 50%);
+}
+
+.center-popup[data-placement="left"]::before {
+  right: -16px;
+  clip-path: polygon(0 0, 100% 50%, 0 100%);
+}
+
+.center-popup[data-placement="left"]::after {
+  right: -14px;
+  clip-path: polygon(0 0, 100% 50%, 0 100%);
 }
 
 /* 중앙 팝업을 닫기 위한 컨트롤입니다. */
 .center-popup-close {
   position: absolute;
-  top: 8px;
-  right: 8px;
-  background: none;
+  top: 20px;
+  right: 20px;
+  width: 32px;
+  height: 32px;
+  margin: 0;
+  padding: 6px;
+  display: grid;
+  place-items: center;
+  background: transparent;
   border: none;
-  font-size: 18px;
+  border-radius: 8px;
+  color: #667085;
   cursor: pointer;
 }
+.center-popup-close:hover {
+  background: #f2f4f7;
+  color: #344054;
+}
+.center-popup-close svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-width: 1.8;
+}
 .center-popup-content {
-  padding: 20px;
-  text-align: center;
+  padding: 0 24px 22px;
+  text-align: left;
 }
 
 /* script.js가 설정한 사용자 정의 속성으로 Pickr 팝업 위치를 잡습니다. */
@@ -1359,42 +1422,203 @@ button,
 
 /* 검증 팝업 크기 설정입니다. */
 #invalidInputPopup {
-  max-height: 280px;
+  display: flex;
+  flex-direction: column;
+  max-height: min(720px, calc(100vh - 32px));
   overflow: visible;
   font-size: 14px;
   font-weight: 500;
 }
 
 #invalidInputPopup .center-popup-content {
+  min-width: 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  padding: 20px;
   box-sizing: border-box;
-  max-height: 280px;
+  max-height: calc(100vh - 170px);
   overflow: hidden;
 }
 
-#invalidInputPopup .center-popup-content h2 {
-  margin: 0 0 10px;
-  flex-shrink: 0;
-  font-size: 16px !important;
+.invalid-popup-header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 24px 64px 20px 24px;
+}
+
+.invalid-popup-warning {
+  width: 46px;
+  height: 46px;
+  flex: 0 0 46px;
+  display: grid;
+  place-items: center;
+  color: #d92d20;
+  background: #fee4e2;
+  border-radius: 50%;
+}
+
+.invalid-popup-warning svg {
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.invalid-popup-heading {
+  min-width: 0;
+}
+
+#invalidInputPopup .invalid-popup-heading h2 {
+  margin: 0 0 4px;
+  color: #101828;
+  font-size: 20px !important;
+  line-height: 1.35;
   font-weight: 900 !important;
 }
 
-#invalidInputPopup .center-popup-content ul#invalidInputList {
-  flex: 1 1 auto;
-  overflow-y: auto;
+#invalidInputPopup .invalid-popup-heading p {
   margin: 0;
+  color: #667085;
   font-size: 14px;
-  font-weight: 500;
-}
-#invalidInputPopup .center-popup-content ul#invalidInputList li {
-  font-size: 14px;
-  font-weight: 500;
+  line-height: 1.45;
+  font-weight: 700 !important;
 }
 
-#invalidInputPopup .center-popup-close {
-  display: none !important;
+#invalidInputPopup ul#invalidInputList {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+  margin: 0;
+  padding: 0 4px 0 0;
+  list-style: none;
+  scrollbar-color: #d0d5dd transparent;
+  scrollbar-width: thin;
+  scrollbar-gutter: stable;
+}
+
+#invalidInputPopup ul#invalidInputList li + li {
+  margin-top: 10px;
+}
+
+.invalid-input-item {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  min-height: 82px;
+  height: auto;
+  margin: 0;
+  padding: 14px 16px;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) 20px;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  background: #fffafa;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  box-shadow: none;
+  transition: border-color 0.15s ease, background 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.invalid-input-item:hover {
+  background: #fff5f5;
+  border-color: #fda29b;
+  box-shadow: inset 0 0 0 1px rgba(229, 72, 77, 0.14);
+  transform: none !important;
+}
+
+.invalid-input-item:focus-visible,
+.center-popup-close:focus-visible {
+  outline: 3px solid rgba(45, 124, 255, 0.28);
+  outline-offset: 2px;
+}
+
+.invalid-input-status {
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  background: #e5484d;
+  border-radius: 50%;
+  font-size: 12px;
+  line-height: 1;
+  font-weight: 900 !important;
+}
+
+.invalid-input-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.invalid-input-meta {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #344054;
+  font-size: 13px;
+  line-height: 1.3;
+  font-weight: 900 !important;
+}
+
+.invalid-input-bubble {
+  position: relative;
+  width: 18px;
+  height: 13px;
+  flex: 0 0 18px;
+  background: #ddd6fe;
+  border: 1px solid #c4b5fd;
+  border-radius: 7px;
+}
+
+.invalid-input-bubble::after {
+  content: "";
+  position: absolute;
+  left: 3px;
+  bottom: -4px;
+  border-width: 3px 4px 0 0;
+  border-style: solid;
+  border-color: #c4b5fd transparent transparent transparent;
+  transform: skewX(-18deg);
+}
+
+.invalid-input-message {
+  overflow: hidden;
+  color: #101828;
+  font-size: 15px;
+  line-height: 1.45;
+  font-weight: 700 !important;
+  overflow-wrap: anywhere;
+  word-break: keep-all;
+  white-space: normal;
+}
+
+.invalid-input-chevron {
+  color: #98a2b3;
+  font-family: Arial, sans-serif !important;
+  font-size: 28px;
+  line-height: 1;
+  font-weight: 400 !important;
+}
+
+@media (max-width: 560px) {
+  .invalid-popup-header {
+    padding: 20px 56px 16px 18px;
+  }
+
+  .center-popup-content {
+    padding: 0 18px 18px;
+  }
+
 }
 
 html {
@@ -1429,6 +1653,11 @@ html {
 #container:hover {
   right: 0;
   opacity: 1;
+}
+
+/* SAMI 코드 편집 화면에서는 자막 위치 책갈피 레일을 숨깁니다. */
+body.sami-code-editing #sidebar {
+  display: none;
 }
 
 /* 보이는 언어 섹션마다 하나씩 표시되는 북마크 점입니다. */
@@ -1542,7 +1771,16 @@ html {
   opacity: 1;
 }
 
-/* 검증 팝업이 보이는 동안 배경 상호작용을 잠급니다. */
+/* 검증 말풍선이 열리면 화살표 원만 오버레이 위에 남깁니다. */
+body.modal-open .divider-valley-shape {
+  z-index: 30009;
+}
+
+body.modal-open .click-anim-container {
+  z-index: 30010;
+}
+
+/* 검증 말풍선이 열려 있는 동안 상태 전환 애니메이션만 멈춥니다. */
 body.modal-open * {
   animation-play-state: paused !important;
 
@@ -2210,6 +2448,14 @@ body {
   background: var(--surface-bg);
   border: 1px solid var(--line);
   border-radius: 8px;
+}
+
+/* 업로드 여부와 관계없이 미디어 작업 영역은 모서리가 잘리지 않게 직각으로 유지합니다. */
+.video-panel #video-container,
+.video-panel video,
+.video-panel #timelineContainer,
+.video-panel #waveformContainer {
+  border-radius: 0;
 }
 
 /* Right editing workspace */

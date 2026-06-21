@@ -324,20 +324,128 @@ document.addEventListener("DOMContentLoaded", () => {
     const overlay = document.getElementById("invalidInputOverlay");
     const popup = document.getElementById("invalidInputPopup");
     const list = document.getElementById("invalidInputList");
+    const summary = document.getElementById("invalidInputSummary");
 
     list.innerHTML = "";
-    items.forEach((msg) => {
+    items.forEach((item) => {
       const li = document.createElement("li");
-      li.textContent = msg;
+      const button = document.createElement("button");
+      const status = document.createElement("span");
+      const content = document.createElement("span");
+      const meta = document.createElement("span");
+      const bubble = document.createElement("span");
+      const message = document.createElement("span");
+      const chevron = document.createElement("span");
+
+      button.type = "button";
+      button.className = "invalid-input-item";
+      button.setAttribute("aria-label", `${item.meta}: ${item.message}`);
+      button.addEventListener("click", () => focusInvalidInput(item.target));
+
+      status.className = "invalid-input-status";
+      status.setAttribute("aria-hidden", "true");
+      status.textContent = "!";
+
+      content.className = "invalid-input-copy";
+      meta.className = "invalid-input-meta";
+      bubble.className = "invalid-input-bubble";
+      bubble.setAttribute("aria-hidden", "true");
+      meta.append(bubble, document.createTextNode(item.meta));
+
+      message.className = "invalid-input-message";
+      message.textContent = item.message;
+      content.append(meta, message);
+
+      chevron.className = "invalid-input-chevron";
+      chevron.setAttribute("aria-hidden", "true");
+      chevron.textContent = "›";
+
+      button.append(status, content, chevron);
+      li.appendChild(button);
       list.appendChild(li);
     });
 
+    summary.textContent = `${items.length}개의 항목을 확인해 주세요`;
+
     overlay.classList.remove("hidden");
+    popup.classList.add("positioning");
     popup.classList.remove("hidden");
+    requestAnimationFrame(() => {
+      positionInvalidInputPopover();
+      popup.classList.remove("positioning");
+    });
 
     document.body.classList.add("modal-open");
 
     document.getElementById("download-btn").disabled = true;
+  }
+
+  function closeInvalidInputModal() {
+    document.getElementById("invalidInputOverlay").classList.add("hidden");
+    document.getElementById("invalidInputPopup").classList.add("hidden");
+    document.body.classList.remove("modal-open");
+  }
+
+  // 화살표 원의 현재 위치를 기준으로 말풍선과 꼬리를 함께 배치합니다.
+  function positionInvalidInputPopover() {
+    const popup = document.getElementById("invalidInputPopup");
+    if (!clickBtn || popup.classList.contains("hidden")) return;
+
+    const viewportMargin = 16;
+    const tailWidth = 16;
+    const popoverGap = 8;
+    const maxPopoverWidth = 520;
+    const anchorRect = clickBtn.getBoundingClientRect();
+    const anchorCenterX = anchorRect.left + anchorRect.width / 2;
+    const anchorCenterY = anchorRect.top + anchorRect.height / 2;
+    const availableRight =
+      window.innerWidth -
+      anchorRect.right -
+      tailWidth -
+      popoverGap -
+      viewportMargin;
+    const availableLeft =
+      anchorRect.left - tailWidth - popoverGap - viewportMargin;
+    const placement =
+      anchorCenterX <= window.innerWidth / 2 ? "right" : "left";
+    const availableWidth =
+      placement === "right" ? availableRight : availableLeft;
+    const popoverWidth = Math.min(
+      maxPopoverWidth,
+      Math.max(0, availableWidth)
+    );
+
+    popup.dataset.placement = placement;
+    popup.style.width = `${popoverWidth}px`;
+    popup.style.left =
+      placement === "right"
+        ? `${anchorRect.right + tailWidth + popoverGap}px`
+        : `${anchorRect.left - tailWidth - popoverGap - popoverWidth}px`;
+
+    const popupHeight = popup.getBoundingClientRect().height;
+    const maxTop = Math.max(
+      viewportMargin,
+      window.innerHeight - viewportMargin - popupHeight
+    );
+    const popupTop = Math.max(
+      viewportMargin,
+      Math.min(anchorCenterY - popupHeight / 2, maxTop)
+    );
+    const tailInset = 28;
+    const tailY = Math.max(
+      tailInset,
+      Math.min(anchorCenterY - popupTop, popupHeight - tailInset)
+    );
+
+    popup.style.top = `${popupTop}px`;
+    popup.style.setProperty("--popover-tail-y", `${tailY}px`);
+  }
+
+  function focusInvalidInput(target) {
+    if (!target) return;
+    closeInvalidInputModal();
+    target.scrollIntoView({ behavior: "smooth", block: "center" });
+    window.setTimeout(() => target.focus(), 180);
   }
 
   // 사용자가 입력칸으로 돌아오면 오류 강조 표시를 제거합니다.
@@ -478,6 +586,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     document.querySelector(".main-content")?.classList.remove("minimal");
+    document.body.classList.remove("sami-code-editing");
   }
 
   let clickToggle = false;
@@ -528,6 +637,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       const nowVisible = output.style.display === "block";
+      document.body.classList.toggle("sami-code-editing", nowVisible);
 
       if (nowVisible) {
         updateOutputBounds();
@@ -597,28 +707,25 @@ document.addEventListener("DOMContentLoaded", () => {
   // 사용자가 팝업이나 배경을 닫으면 검증 안내를 닫습니다.
   document
     .getElementById("invalidInputClose")
-    .addEventListener("click", () => {
-      document
-        .getElementById("invalidInputOverlay")
-        .classList.add("hidden");
-      document
-        .getElementById("invalidInputPopup")
-        .classList.add("hidden");
+    .addEventListener("click", closeInvalidInputModal);
 
-      document.body.classList.remove("modal-open");
-    });
-  document
-    .getElementById("invalidInputOverlay")
-    .addEventListener("click", () => {
-      document
-        .getElementById("invalidInputOverlay")
-        .classList.add("hidden");
-      document
-        .getElementById("invalidInputPopup")
-        .classList.add("hidden");
+  document.addEventListener("pointerdown", (event) => {
+    const popup = document.getElementById("invalidInputPopup");
+    if (popup.classList.contains("hidden")) return;
+    if (popup.contains(event.target) || clickBtn?.contains(event.target)) return;
+    closeInvalidInputModal();
+  });
 
-      document.body.classList.remove("modal-open");
-    });
+  document.addEventListener("keydown", (event) => {
+    if (
+      event.key === "Escape" &&
+      !document.getElementById("invalidInputPopup").classList.contains("hidden")
+    ) {
+      closeInvalidInputModal();
+    }
+  });
+
+  window.addEventListener("resize", positionInvalidInputPopover);
 
   // Pickr가 강조 색상을 편집 중인 활성 언어 버튼입니다.
   let pickrTargetBtn = null;
@@ -1788,26 +1895,34 @@ document.addEventListener("DOMContentLoaded", () => {
               .forEach((sec, sIdx) => {
                 sec.querySelectorAll(".time").forEach((ti, tIdx) => {
                   if (!ti.value || !this.validateTimeFormat(ti.value)) {
-                    invalid.push(
-                      `${shortCode} - 💬${sIdx + 1} - Start time ${
-                        tIdx + 1
-                      }`
-                    );
+                    invalid.push({
+                      meta: `${shortCode} · 자막 ${sIdx + 1}`,
+                      message: "시작 시간을 입력해 주세요",
+                      target: ti,
+                      lineIndex: tIdx,
+                    });
                     ti.classList.add("error");
                   }
                 });
 
                 const lt = sec.querySelector(".last-time");
                 if (!lt.value || !this.validateTimeFormat(lt.value)) {
-                  invalid.push(`${shortCode} - 💬${sIdx + 1} - End time`);
+                  invalid.push({
+                    meta: `${shortCode} · 자막 ${sIdx + 1}`,
+                    message: "종료 시간을 입력해 주세요",
+                    target: lt,
+                  });
                   lt.classList.add("error");
                 }
 
                 sec.querySelectorAll(".text").forEach((tx, txtIdx) => {
                   if (!tx.value.trim()) {
-                    invalid.push(
-                      `${shortCode} - 💬${sIdx + 1} - Text ${txtIdx + 1}`
-                    );
+                    invalid.push({
+                      meta: `${shortCode} · 자막 ${sIdx + 1}`,
+                      message: "자막 내용을 입력해 주세요",
+                      target: tx,
+                      lineIndex: txtIdx,
+                    });
                     tx.classList.add("error");
                   }
                 });
@@ -1815,11 +1930,7 @@ document.addEventListener("DOMContentLoaded", () => {
           });
 
         if (invalid.length > 0) {
-          showInvalidInputModal(
-            invalid.map((item) => {
-              return item;
-            })
-          );
+          showInvalidInputModal(invalid);
           return;
         }
 
@@ -2663,6 +2774,7 @@ ${styleLines}
       DIVIDER_GUTTER_WIDTH / 2 +
       TRANSFER_BUTTON_OFFSET_X
     }px`;
+    positionInvalidInputPopover();
 
     return nextX;
   }
@@ -2915,6 +3027,10 @@ ${styleLines}
     );
   }
 
+  function canReorderLanguages() {
+    return getVisibleLanguageButtons().length > 1;
+  }
+
   function clearLanguageDropFeedback() {
     languageToggle
       .querySelectorAll(".lang-btn.drop-target")
@@ -2926,6 +3042,11 @@ ${styleLines}
   }
 
   function showLanguageDropIndicator(beforeBtn) {
+    if (!canReorderLanguages()) {
+      languageDropIndicator.hidden = true;
+      return;
+    }
+
     const toggleRect = languageToggle.getBoundingClientRect();
     const visibleButtons = getVisibleLanguageButtons().filter(
       (btn) => btn !== dragSourceBtn
@@ -2945,9 +3066,14 @@ ${styleLines}
   }
 
   function updateLanguageDropIntent(e) {
-    if (!dragSourceBtn || !dragSourceBtn.classList.contains("active")) {
+    if (
+      !dragSourceBtn ||
+      !dragSourceBtn.classList.contains("active") ||
+      !canReorderLanguages()
+    ) {
       languageDropIntent = null;
       clearLanguageDropFeedback();
+      e.dataTransfer.dropEffect = "none";
       return;
     }
 
@@ -2970,7 +3096,11 @@ ${styleLines}
       return;
     }
 
-    const otherButtons = getVisibleLanguageButtons().filter(
+    const visibleButtons = getVisibleLanguageButtons();
+    const sourceIndex = visibleButtons.indexOf(dragSourceBtn);
+    const sourceWasLast =
+      visibleButtons[visibleButtons.length - 1] === dragSourceBtn;
+    const otherButtons = visibleButtons.filter(
       (btn) => btn !== dragSourceBtn
     );
     const beforeBtn =
@@ -2978,6 +3108,31 @@ ${styleLines}
         const rect = btn.getBoundingClientRect();
         return e.clientY < rect.top + rect.height / 2;
       }) || null;
+    const insertionIndex = beforeBtn
+      ? otherButtons.indexOf(beforeBtn)
+      : otherButtons.length;
+    const sourceRect = dragSourceBtn.getBoundingClientRect();
+
+    // 최하단 언어를 더 아래로 끌면 같은 자리에 재삽입하지 않고 삭제합니다.
+    if (
+      sourceWasLast &&
+      beforeBtn === null &&
+      e.clientY > sourceRect.bottom + 4
+    ) {
+      languageDropIntent = { type: "remove" };
+      clearLanguageDropFeedback();
+      dragSourceBtn.classList.add("language-remove-target");
+      e.dataTransfer.dropEffect = "move";
+      return;
+    }
+
+    // 원본 위치와 삽입 결과가 같으면 실제 순서 변화가 없으므로 표시하지 않습니다.
+    if (insertionIndex === sourceIndex) {
+      languageDropIntent = null;
+      clearLanguageDropFeedback();
+      e.dataTransfer.dropEffect = "none";
+      return;
+    }
 
     languageDropIntent = { type: "reorder", beforeBtn };
     clearLanguageDropFeedback();
@@ -2987,6 +3142,14 @@ ${styleLines}
 
   languageToggle.addEventListener("dragover", (e) => {
     if (!dragSourceBtn) return;
+
+    if (!canReorderLanguages()) {
+      languageDropIntent = null;
+      clearLanguageDropFeedback();
+      e.dataTransfer.dropEffect = "none";
+      return;
+    }
+
     e.preventDefault();
     updateLanguageDropIntent(e);
   });
@@ -3039,6 +3202,14 @@ ${styleLines}
   languageToggle.addEventListener("drop", (e) => {
     if (!dragSourceBtn || !languageDropIntent) return;
 
+    if (
+      languageDropIntent.type === "reorder" &&
+      !canReorderLanguages()
+    ) {
+      resetDragState();
+      return;
+    }
+
     e.preventDefault();
     e.stopPropagation();
 
@@ -3054,6 +3225,8 @@ ${styleLines}
         );
         markWorkspaceDirty();
       }
+    } else if (languageDropIntent.type === "remove") {
+      removeLanguageButton(dragSourceBtn);
     } else {
       const addBtn = document.getElementById("addLanguageButton");
       languageToggle.insertBefore(

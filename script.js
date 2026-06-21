@@ -868,9 +868,26 @@ document.addEventListener("DOMContentLoaded", () => {
   const timelineCtx = timelineCanvas.getContext("2d");
   let timelineEnabled = false;
 
+  // 텍스트 편집이나 컨트롤 조작 중에는 전역 재생 단축키가 입력을
+  // 가로채지 않도록 합니다.
+  function isInteractiveKeyboardTarget(target) {
+    return (
+      target instanceof Element &&
+      Boolean(
+        target.closest(
+          'input, textarea, select, button, [contenteditable="true"], [role="button"]'
+        )
+      )
+    );
+  }
+
   // Enter 키로 빠르게 전체화면을 전환합니다.
   document.addEventListener("keydown", (e) => {
-    if (e.code === "Enter") {
+    if (
+      e.code === "Enter" &&
+      !e.defaultPrevented &&
+      !isInteractiveKeyboardTarget(e.target)
+    ) {
       e.preventDefault();
 
       fullscreenBtn.click();
@@ -920,14 +937,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // 사용자가 입력칸에 타이핑 중이 아닐 때 Space 키로 재생을 전환합니다.
   document.addEventListener("keydown", (e) => {
-    const ae = document.activeElement;
+    if (e.defaultPrevented || isInteractiveKeyboardTarget(e.target)) return;
 
-    if (
-      ae.tagName === "TEXTAREA" ||
-      (ae.tagName === "INPUT" && ae.type === "text")
-    ) {
-      return;
-    }
     if (e.code === "Space") {
       e.preventDefault();
       if (video.paused) video.play();

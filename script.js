@@ -2647,6 +2647,7 @@ ${styleLines}
     );
 
     modal.classList.remove("hidden");
+    document.body.classList.add("language-modal-open");
 
     updateToggleBackdrop();
 
@@ -2665,6 +2666,7 @@ ${styleLines}
   modal.addEventListener("click", (e) => {
     if (e.target === modal) {
       modal.classList.add("hidden");
+      document.body.classList.remove("language-modal-open");
 
       toggleBackdrop.style.display = "none";
 
@@ -2676,6 +2678,7 @@ ${styleLines}
   backdrop.addEventListener("click", () => {
     modal.classList.add("hidden");
     backdrop.classList.add("hidden");
+    document.body.classList.remove("language-modal-open");
     toggleBackdrop.style.display = "none";
 
     document
@@ -2756,6 +2759,7 @@ ${styleLines}
 
       document.getElementById("languageModal").classList.add("hidden");
       document.getElementById("modalBackdrop").classList.add("hidden");
+      document.body.classList.remove("language-modal-open");
 
       toggleBackdrop.style.display = "none";
 
@@ -2797,6 +2801,7 @@ ${styleLines}
   const videoPanel = document.querySelector(".video-panel");
   const mainContent = document.querySelector(".main-content");
   let isDragging = false;
+  let dividerPointerId = null;
   let dividerDragOffsetX = DIVIDER_GUTTER_WIDTH / 2;
   let dividerSnapReady = false;
   let isDividerSnapping = false;
@@ -3013,21 +3018,49 @@ ${styleLines}
 
   requestAnimationFrame(alignInitialDividerToTimeline);
 
-  divider.addEventListener("mousedown", (e) => {
+  divider.addEventListener("pointerdown", (e) => {
+    if (
+      isDragging ||
+      (e.pointerType === "mouse" && e.button !== 0)
+    ) {
+      return;
+    }
+
+    // Keep the resize gesture owned by the divider. Without cancelling the
+    // native pointer action, moving across the workspace starts selecting or
+    // dragging input text underneath the pointer.
+    e.preventDefault();
     cancelDividerSnapAnimation();
     setDividerSnapReady(false);
     isDragging = true;
+    dividerPointerId = e.pointerId;
     dividerDragOffsetX = e.clientX - divider.getBoundingClientRect().left;
     divider.classList.add("is-dragging");
+    document.body.classList.add("divider-is-dragging");
+    divider.setPointerCapture(e.pointerId);
   });
 
-  document.addEventListener("mouseup", () => {
-    if (!isDragging) return;
+  function finishDividerDrag(e, allowSnap = true) {
+    if (
+      !isDragging ||
+      (e && dividerPointerId !== null && e.pointerId !== dividerPointerId)
+    ) {
+      return;
+    }
 
     isDragging = false;
     divider.classList.remove("is-dragging");
+    document.body.classList.remove("divider-is-dragging");
 
-    if (dividerSnapReady) {
+    if (
+      dividerPointerId !== null &&
+      divider.hasPointerCapture(dividerPointerId)
+    ) {
+      divider.releasePointerCapture(dividerPointerId);
+    }
+    dividerPointerId = null;
+
+    if (allowSnap && dividerSnapReady) {
       const { minX } = getDividerBounds();
       animateDividerTo(minX);
       return;
@@ -3035,11 +3068,20 @@ ${styleLines}
 
     setDividerSnapReady(false);
     finishDividerLayoutUpdate();
-  });
+  }
+
+  divider.addEventListener("pointerup", (e) => finishDividerDrag(e));
+  divider.addEventListener("pointercancel", (e) =>
+    finishDividerDrag(e, false)
+  );
+  divider.addEventListener("lostpointercapture", (e) =>
+    finishDividerDrag(e, false)
+  );
 
   // 미디어 패널 크기를 바꾸고 관련 오버레이와 캔버스를 다시 계산합니다.
-  document.addEventListener("mousemove", (e) => {
-    if (!isDragging) return;
+  divider.addEventListener("pointermove", (e) => {
+    if (!isDragging || e.pointerId !== dividerPointerId) return;
+    e.preventDefault();
 
     const { minX, maxX } = getDividerBounds();
     const rawX = Math.max(
@@ -3370,6 +3412,7 @@ ${styleLines}
 
     reorderSectionContainers();
     document.getElementById("languageModal").classList.add("hidden");
+    document.body.classList.remove("language-modal-open");
     subtitleGenerator.toggleLanguageSections();
 
     updateBookmarks();
@@ -3433,6 +3476,7 @@ ${styleLines}
   function closeLangModal() {
     modal.classList.add("hidden");
     modalBackdrop.classList.add("hidden");
+    document.body.classList.remove("language-modal-open");
 
     toggleBackdrop.style.display = "none";
 
